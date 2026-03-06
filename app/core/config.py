@@ -2,21 +2,21 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # Project Info
-    PROJECT_NAME: str
-    PROJECT_DESCRIPTION: str
-    PROJECT_VERSION: str
-    API_V1_STR: str
+    PROJECT_NAME: str = "Real-Time Machine Data Ingestion Service"
+    PROJECT_DESCRIPTION: str = "Microservice for receiving, storing, and serving real-time sensor data from industrial machines"
+    PROJECT_VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
 
     # Server Config
-    SERVER_HOST: str
-    SERVER_PORT: int
+    SERVER_HOST: str = "localhost"
+    SERVER_PORT: int = 8000
     
     # PostgreSQL Backend
     POSTGRES_SERVER: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    POSTGRES_PORT: str
+    POSTGRES_PORT: str = "5432"
     
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
