@@ -3,7 +3,7 @@
 
 ## Question 1.1: Database Design (Data Modeling)
 
-### Machine Metadata (PostgreSQL)
+### 1. Machine Metadata (PostgreSQL)
 
 We use PostgreSQL as a relational database to store machine metadata. It is well-suited for structured data that changes infrequently and requires ACID compliance.
 
@@ -27,7 +27,7 @@ CREATE INDEX idx_machine_status ON machine_metadata(status);
 
 ---
 
-### Sensor Data (InfluxDB)
+### 2. Sensor Data (InfluxDB)
 
 InfluxDB is utilized for the high-frequency time-series sensor data because of its high write throughput and optimized time-window aggregations.
 
@@ -44,7 +44,7 @@ InfluxDB is utilized for the high-frequency time-series sensor data because of i
 
 ---
 
-### Optimization Strategy for Analytics
+### 3. Optimization Strategy for Analytics
 
 To ensure rapid query execution for weekly/monthly historical analytics across hundreds of machines, we implement the following:
 
@@ -60,7 +60,7 @@ To ensure rapid query execution for weekly/monthly historical analytics across h
 
 ## Question 1.2: RESTful API Design
 
-### Ingestion Endpoint (`POST /api/v1/data/ingest`)
+### 1. Ingestion Endpoint (`POST /api/v1/data/ingest`)
 
 We assume ingestion happens via industrial gateways pushing batched sensor payloads, which is more network-efficient than single-point requests.
 
@@ -94,7 +94,7 @@ We assume ingestion happens via industrial gateways pushing batched sensor paylo
 
 ---
 
-### Retrieval Endpoint (`GET /api/v1/data/machine/{machine_id}`)
+### 2. Retrieval Endpoint (`GET /api/v1/data/machine/{machine_id}`)
 
 Retrieves bounded historical data for a given machine target.
 
@@ -106,9 +106,9 @@ Retrieves bounded historical data for a given machine target.
 
 ---
 
-### Brief Implementation Snippet
+### 3. Brief Implementation Snippet
 
-The ingestion endpoint code in FastAPI is available in `app/api/v1/endpoints/ingest.py`, showcasing robust Pydantic data validation logic over input formats, allowable boundaries, and timestamp checking before returning a `202 Accepted` response for decoupled batch-ingestion architectures.
+The ingestion endpoint code is available in `app/api/v1/endpoints/ingest.py`, showcasing robust Pydantic data validation logic over input formats, allowable boundaries, and timestamp checking before returning a `202 Accepted` response for decoupled batch-ingestion architectures.
 
 #### Ingestion Pseudocode
 
@@ -143,9 +143,9 @@ FUNCTION ingest_sensor_data(request_body: BatchIngestRequest):
 
 ## Question 2.1: MQTT Code Flow Pseudocode
 
-### Code Flow
+### 1. Code Flow
 
-#### Topic Subscribed
+#### 1.1. Topic Subscribed
 
 ```text
 factory/A/machine/+/telemetry
@@ -155,7 +155,7 @@ The `+` is a single-level MQTT wildcard that matches any machine identifier.
 
 ---
 
-#### MQQT Pseudocode
+#### 1.2. MQQT Pseudocode
 
 ```text
 FUNCTION mqtt_subscriber_main():
@@ -245,7 +245,7 @@ FUNCTION on_message(topic: string, payload: bytes):
 
 ---
 
-#### Flow Summary
+#### 1.3. Flow Summary
 
 ```text
 MQTT Broker
@@ -264,9 +264,9 @@ handle_mqtt_message(topic, payload)
 
 ---
 
-### WebSocket vs MQTT: Fundamental Differences & Decision Guide
+### 2. WebSocket vs MQTT: Fundamental Differences & Decision Guide
 
-#### Fundamental Differences
+#### 2.1 Fundamental Differences
 
 | Dimension | MQTT | WebSocket |
 | ----------- | ------ | ----------- |
@@ -283,7 +283,7 @@ handle_mqtt_message(topic, payload)
 
 ---
 
-#### When to Choose MQTT over WebSocket for a Real-Time Dashboard
+#### 2.2. When to Choose MQTT over WebSocket for a Real-Time Dashboard
 
 Choose **MQTT as the data source** when **any** of the following conditions apply:
 
@@ -319,7 +319,7 @@ know about and manage every consumer.
 
 ---
 
-#### When WebSocket is preferable
+#### 2.3. When WebSocket is preferable
 
 | Scenario | Prefer |
 | ---------- | -------- |
@@ -330,7 +330,7 @@ know about and manage every consumer.
 
 ---
 
-#### Architecture of This Service
+#### 2.4. Architecture of This Service
 
 This service uses **MQTT as the primary ingestion channel** (device → broker →
 `MQTTSubscriberService` → InfluxDB) and exposes the stored data over **REST / WebSocket** to dashboard clients—combining both protocols at the layer where
@@ -341,3 +341,62 @@ each is strongest.
                                                                          │
 [Browser Dashboard]  ←  ──────── REST / WebSocket ─────────────  [FastAPI API]
 ```
+
+---
+
+## Question 2.2: Security and Authentication (RBAC)
+
+### 1. JWT Design
+
+To effectively support Role-Based Access Control (RBAC) without requiring a database lookup for every API request, the JWT payload must encapsulate the user's identity and their authorization privileges.
+
+**Required Payload Claims:**
+
+* **`sub` (Subject):** The unique User ID (usually a UUID). This identifies who is making the request, essential for auditing, logging, and performing user-specific actions.
+* **`role` (Custom Claim):** The user's assigned role (e.g., `Operator`, `Supervisor`, `Management`). This is the core piece of information used for RBAC decisions.
+* **`exp` (Expiration Time):** The timestamp when the token expires. Critical for security to limit the window of opportunity if a token is compromised.
+* **`iat` (Issued At):** The timestamp when the token was created.
+* **`jti` (JWT ID):** A unique identifier for the token. Useful if we need to implement token revocation (blacklisting) before expiration.
+
+**Example Payload:**
+
+```json
+{
+  "sub": "b2f618a3-9c8d-4e5a-8b1e-2f3a4c5d6e7f",
+  "role": "Management",
+  "name": "Jane Doe",
+  "exp": 1700000000,
+  "iat": 1699996400,
+  "jti": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+---
+
+### 2. Authorization Flow
+
+Below is the step-by-step workflow when a user with the `Management` role attempts to access a sensitive endpoint like `POST /api/v1/config/update`:
+
+1. **Login & Authentication:**
+    * The user sends their credentials (e.g., email/password) to the login endpoint (`POST /api/v1/auth/login`).
+    * The backend validates the credentials against the database.
+    * If valid, the system retrieves the user's profile and their assigned role (`Management`).
+2. **JWT Generation:**
+    * The backend generates a JWT. It signs the token using a secure, private secret key.
+    * The payload is populated with the user's ID (`sub`) and role (`role: "Management"`).
+    * The token is returned to the client in the response.
+3. **API Request:**
+    * The user tries to update the configuration by making a request to `POST /api/v1/config/update`.
+    * The client attaches the JWT to the request, typically in the `Authorization` header as a Bearer token (`Authorization: Bearer <token>`).
+4. **Token Validation (Authentication Middleware):**
+    * The API intercepts the request. The authentication dependency reads the header and extracts the JWT.
+    * The backend verifies the token's cryptographic signature using the server's secret key to ensure it hasn't been altered.
+    * The backend checks the `exp` claim to ensure the token isn't expired. If invalid or expired, a `401 Unauthorized` is returned.
+5. **Role Verification (Authorization Middleware):**
+    * After successful token validation, the authorization dependency extracts the `role` claim from the payload.
+    * The endpoint `POST /api/v1/config/update` is configured to require the `Management` role.
+    * The system compares the extracted role (`Management`) against the required role restrictions.
+    * Since the user possesses the correct role, authorization is granted. (Had the role been `Operator` or `Supervisor`, a `403 Forbidden` would be returned).
+6. **Request Execution & Response:**
+    * The request proceeds to the endpoint's core logic.
+    * The configuration is updated, and the server returns a success response (e.g., `200 OK`) to the client.
