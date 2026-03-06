@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     DB_USER: str = "postgres"
     DB_PASSWORD: str = ""
     DB_NAME: str = "postgres"
-    DB_PORT: str = "5432"
+    DB_PORT: int = 5432
     
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
