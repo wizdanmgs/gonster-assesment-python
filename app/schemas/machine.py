@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class MachineBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Name of the machine")
@@ -23,5 +23,4 @@ class MachineResponse(MachineBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
