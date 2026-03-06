@@ -120,7 +120,7 @@ async def test_ingest_sensor_data_invalid_gateway_id(client, app, mock_user):
     response = await client.post("/api/v1/data/ingest", json=payload)
 
     # Assert
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     # Cleanup
     app.dependency_overrides.clear()
@@ -147,7 +147,7 @@ async def test_ingest_sensor_data_future_timestamp(client, app, mock_user):
     response = await client.post("/api/v1/data/ingest", json=payload)
 
     # Assert
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert "future" in response.text
 
     # Cleanup
@@ -175,7 +175,7 @@ async def test_ingest_sensor_data_old_timestamp(client, app, mock_user):
     response = await client.post("/api/v1/data/ingest", json=payload)
 
     # Assert
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert "too old" in response.text
 
     # Cleanup
@@ -202,7 +202,7 @@ async def test_ingest_sensor_data_out_of_threshold(client, app, mock_user):
     response = await client.post("/api/v1/data/ingest", json=payload)
 
     # Assert
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     # Cleanup
     app.dependency_overrides.clear()
@@ -232,7 +232,7 @@ async def test_ingest_sensor_data_batch_size_limit(client, app, mock_user):
     response = await client.post("/api/v1/data/ingest", json=payload)
 
     # Assert
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     # Cleanup
     app.dependency_overrides.clear()

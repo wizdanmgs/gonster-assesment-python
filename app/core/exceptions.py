@@ -20,9 +20,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     logger.error(f"Validation error: {exc.errors()}")
     return resp_error(
         message=MSG_VALIDATION_ERROR,
-        status="UNPROCESSABLE_ENTITY",
+        status="UNPROCESSABLE_CONTENT",
         details=exc.errors(),
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
     )
 
 
@@ -37,8 +37,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         err_status = ErrorStatus.FORBIDDEN
     elif exc.status_code == status.HTTP_404_NOT_FOUND:
         err_status = ErrorStatus.NOT_FOUND
-    elif exc.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
-        err_status = ErrorStatus.UNPROCESSABLE_ENTITY
+    elif exc.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT:
+        err_status = ErrorStatus.UNPROCESSABLE_CONTENT
     elif exc.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
         err_status = ErrorStatus.INTERNAL_SERVER_ERROR
 
