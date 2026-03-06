@@ -488,3 +488,32 @@ When the `MQTTSubscriberService` or REST ingest endpoint receives a payload, it 
 #### Performance Impact
 
 Redis operates in-memory, reducing metadata lookups from multi-millisecond disk/network I/O (PostgreSQL round-trip) to **microsecond-level** memory access. In scenarios with hundreds of MQTT messages per second, the cache absorbs the vast majority of `machine_id` existence checks, leaving PostgreSQL free for writes and infrequent cold reads.
+
+---
+
+## Question 3.2: GitHub Actions CI/CD Pipeline
+
+To ensure that only high-quality, secure, and fully functional code is deployed to production, a robust GitHub Actions workflow should include the following 3 critical steps (jobs):
+
+### 1. Linting & Static Code Analysis (Code Quality)
+
+Before running any tests, it's essential to enforce consistent coding standards and catch syntax or stylistic errors early in the pipeline.
+
+* **Actions/Tools**: Formatting with `black` and `isort`, and linting with `flake8` or `pylint`. Static type-checking using `mypy` can also be run in this step.
+* **Purpose**: Ensures the codebase remains readable, uniform, and free of obvious, easily preventable bugs or code smells. This job fails fast, saving compute resources if the code is malformed.
+
+### 2. Automated Testing (Unit & Integration Tests)
+
+This is the core validation step. It runs the test suite to verify that the application behaves as expected.
+
+* **Actions/Tools**: Running `pytest` with code coverage (`pytest-cov`). For integration tests, we utilize **GitHub Actions Service Containers** to spin up ephemeral instances of PostgreSQL, Redis, InfluxDB, and Mosquitto, mimicking the production environment.
+* **Purpose**: Validates business logic, database interactions, and API endpoints. Enforcing a minimum code coverage threshold (e.g., 85%) prevents regressions and ensures that new features are adequately tested before they can be merged.
+
+### 3. Security Scanning & Artifact Build
+
+Once the code is verified as functional and clean, it must be secured and packaged.
+
+* **Actions/Tools**:
+    1. **SAST & Dependency Scanning**: Tools like `bandit` (for Python code vulnerabilities) and `safety` (for checking CVEs in `requirements.txt`).
+    2. **Container Build & Scan**: Building the multi-stage Docker image and running a container vulnerability scanner like `Trivy` or Docker Scout.
+* **Purpose**: Protects the application from known security threats by identifying vulnerable dependencies or insecure code patterns. If the scans pass, the Docker image is tagged and pushed to an artifact registry (like GitHub Packages or Docker Hub), marking it as a verified release candidate ready for deployment.
