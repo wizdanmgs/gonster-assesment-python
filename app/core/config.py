@@ -11,23 +11,31 @@ class Settings(BaseSettings):
     SERVER_HOST: str = "localhost"
     SERVER_PORT: int = 8000
     
-    # PostgreSQL Backend
-    POSTGRES_SERVER: str
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
-    POSTGRES_PORT: str = "5432"
+    # Database Backend
+    DB_ENGINE: str = "postgresql"
+    DB_DRIVER: str = "asyncpg"
+    DB_HOST: str = "localhost"
+    DB_USER: str = "postgres"
+    DB_PASSWORD: str = ""
+    DB_NAME: str = "postgres"
+    DB_PORT: str = "5432"
     
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return f"{self.DB_ENGINE}+{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
     # InfluxDB Backend (for Sensor Data)
     INFLUXDB_URL: str
     INFLUXDB_TOKEN: str
     INFLUXDB_ORG: str
     INFLUXDB_BUCKET: str
-    
+
+    # MQTT Broker (for Real-Time Sensor Ingestion)
+    MQTT_BROKER_HOST: str = "localhost"
+    MQTT_BROKER_PORT: int = 1883
+    MQTT_TOPIC_FILTER: str = "factory/A/machine/+/telemetry"
+    MQTT_CLIENT_ID: str = "gonster-subscriber"
+
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
 
 settings = Settings()
