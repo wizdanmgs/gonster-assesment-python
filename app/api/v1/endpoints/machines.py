@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import RoleChecker, get_machine_repository
+from app.api.deps import get_machine_repository
 from app.core.messages import (
     MSG_MACHINE_DELETED,
     MSG_MACHINE_DETAILS_RETRIEVED,
@@ -12,20 +12,15 @@ from app.core.messages import (
     MSG_MACHINES_RETRIEVED,
 )
 from app.core.responses import resp_success
-from app.models.user import UserRole
 from app.repositories.base import MachineRepository
 from app.schemas.machine import MachineCreate, MachineUpdate
 from app.services import machine as machine_service
 
 router = APIRouter()
 
+
 # Only users with Management role can access this
-require_management = RoleChecker([UserRole.Management])
-
-
-@router.post(
-    "/", dependencies=[Depends(require_management)], status_code=status.HTTP_201_CREATED
-)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def register_machine(
     machine_in: MachineCreate, repo: MachineRepository = Depends(get_machine_repository)
 ):
@@ -40,7 +35,6 @@ async def register_machine(
 
 @router.get(
     "/",
-    dependencies=[Depends(require_management)],
 )
 async def list_machines(
     skip: int = 0,
@@ -56,7 +50,6 @@ async def list_machines(
 
 @router.get(
     "/{machine_id}",
-    dependencies=[Depends(require_management)],
 )
 async def get_machine(
     machine_id: uuid.UUID, repo: MachineRepository = Depends(get_machine_repository)
@@ -74,7 +67,6 @@ async def get_machine(
 
 @router.patch(
     "/{machine_id}",
-    dependencies=[Depends(require_management)],
 )
 async def update_machine(
     machine_id: uuid.UUID,
@@ -97,7 +89,6 @@ async def update_machine(
 
 @router.delete(
     "/{machine_id}",
-    dependencies=[Depends(require_management)],
     status_code=status.HTTP_200_OK,
 )
 async def delete_machine(

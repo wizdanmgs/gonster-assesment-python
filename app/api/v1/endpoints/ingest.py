@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import RoleChecker, get_machine_repository, get_sensor_repository
+from app.api.deps import get_machine_repository, get_sensor_repository
 from app.core.messages import MSG_INGEST_QUEUED, MSG_MACHINE_NOT_FOUND, get_message
 from app.core.responses import resp_success
-from app.models.user import UserRole
 from app.repositories.base import MachineRepository, SensorRepository
 from app.schemas.sensor_data import BatchIngestRequest
 from app.services import machine as machine_service
@@ -11,13 +10,9 @@ from app.services.ingest import process_sensor_data_batch
 
 router = APIRouter()
 
-# Only users with Management role can access this
-require_management = RoleChecker([UserRole.Management])
-
 
 @router.post(
     "/ingest",
-    dependencies=[Depends(require_management)],
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def ingest_sensor_data(
