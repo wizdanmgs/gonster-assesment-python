@@ -5,6 +5,7 @@ import uuid
 from app.services.retrieve import get_historical_data
 from app.api.deps import get_sensor_repository
 from app.repositories.base import SensorRepository
+from app.core.responses import resp_success
 
 router = APIRouter()
 
@@ -25,23 +26,21 @@ async def get_machine_data(
             detail="start_time must be strictly before end_time"
         )
     
-    try:
-        data = await get_historical_data(
-            repo=repo,
-            machine_id=machine_id,
-            start_time=start_time,
-            end_time=end_time,
-            interval=interval
-        )
-        return {
+    data = await get_historical_data(
+        repo=repo,
+        machine_id=machine_id,
+        start_time=start_time,
+        end_time=end_time,
+        interval=interval
+    )
+    
+    return resp_success(
+        data={
             "machine_id": machine_id,
             "start_time": start_time,
             "end_time": end_time,
             "interval": interval or "raw",
             "data": data
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error retrieving historical datastore"
-        )
+        },
+        message="Historical data retrieved successfully"
+    )

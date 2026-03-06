@@ -4,6 +4,7 @@ from app.services.ingest import process_sensor_data_batch
 from app.services import machine as machine_service
 from app.api.deps import get_machine_repository, get_sensor_repository
 from app.repositories.base import MachineRepository, SensorRepository
+from app.core.responses import resp_success
 
 router = APIRouter()
 
@@ -33,11 +34,8 @@ async def ingest_sensor_data(
         )
 
     # Push batch processing to the service layer
-    try:
-        await process_sensor_data_batch(repo=sensor_repo, batch=request_body)
-        return {"status": "success", "message": f"Successfully queued {len(request_body.payloads)} data points for processing."}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process ingestion batch"
-        )
+    await process_sensor_data_batch(repo=sensor_repo, batch=request_body)
+    return resp_success(
+        message=f"Successfully queued {len(request_body.payloads)} data points for processing.",
+        status_code=status.HTTP_202_ACCEPTED
+    )

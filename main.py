@@ -1,8 +1,12 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
-from app.core.exceptions import validation_exception_handler
+from app.core.exceptions import (
+    validation_exception_handler,
+    http_exception_handler,
+    base_exception_handler
+)
 from app.api.v1.router import api_router
 from app.db.migrations_util import run_migrations
 
@@ -20,6 +24,8 @@ def create_app() -> FastAPI:
 
     # Include custom exception handlers
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(Exception, base_exception_handler)
 
     # Include API router
     app.include_router(api_router, prefix=settings.API_V1_STR)

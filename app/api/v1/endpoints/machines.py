@@ -5,10 +5,11 @@ from app.schemas.machine import MachineCreate, MachineResponse, MachineUpdate
 from app.services import machine as machine_service
 from app.api.deps import get_machine_repository
 from app.repositories.base import MachineRepository
+from app.core.responses import resp_success
 
 router = APIRouter()
 
-@router.post("/", response_model=MachineResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def register_machine(
     machine_in: MachineCreate,
     repo: MachineRepository = Depends(get_machine_repository)
@@ -16,9 +17,10 @@ async def register_machine(
     """
     Register a new industrial machine in the system.
     """
-    return await machine_service.create_machine(repo=repo, machine_in=machine_in)
+    data = await machine_service.create_machine(repo=repo, machine_in=machine_in)
+    return resp_success(data=data, message="Machine registered successfully", status_code=status.HTTP_201_CREATED)
 
-@router.get("/", response_model=List[MachineResponse])
+@router.get("/")
 async def list_machines(
     skip: int = 0,
     limit: int = 100,
@@ -27,9 +29,10 @@ async def list_machines(
     """
     List all registered machines.
     """
-    return await machine_service.get_machines(repo=repo, skip=skip, limit=limit)
+    data = await machine_service.get_machines(repo=repo, skip=skip, limit=limit)
+    return resp_success(data=data, message="Machines retrieved successfully")
 
-@router.get("/{machine_id}", response_model=MachineResponse)
+@router.get("/{machine_id}")
 async def get_machine(
     machine_id: uuid.UUID,
     repo: MachineRepository = Depends(get_machine_repository)
@@ -43,9 +46,9 @@ async def get_machine(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    return db_machine
+    return resp_success(data=db_machine, message="Machine details retrieved successfully")
 
-@router.patch("/{machine_id}", response_model=MachineResponse)
+@router.patch("/{machine_id}")
 async def update_machine(
     machine_id: uuid.UUID,
     machine_in: MachineUpdate,
@@ -60,9 +63,10 @@ async def update_machine(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    return await machine_service.update_machine(repo=repo, db_machine=db_machine, machine_in=machine_in)
+    data = await machine_service.update_machine(repo=repo, db_machine=db_machine, machine_in=machine_in)
+    return resp_success(data=data, message="Machine updated successfully")
 
-@router.delete("/{machine_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{machine_id}", status_code=status.HTTP_200_OK)
 async def delete_machine(
     machine_id: uuid.UUID,
     repo: MachineRepository = Depends(get_machine_repository)
@@ -76,4 +80,4 @@ async def delete_machine(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    return None
+    return resp_success(message="Machine deleted successfully")
