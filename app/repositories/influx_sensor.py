@@ -1,8 +1,8 @@
-import logging
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import structlog
 from influxdb_client import Point
 from influxdb_client.client.influxdb_client_async import InfluxDBClientAsync
 
@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.repositories.base import SensorRepository
 from app.schemas.sensor_data import BatchIngestRequest
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class InfluxSensorRepository(SensorRepository):
@@ -42,10 +42,18 @@ class InfluxSensorRepository(SensorRepository):
                 org=settings.TSDB_ORG,
                 record=points,
             )
-            logger.info(f"Successfully queued {len(points)} points to InfluxDB")
+            logger.info(
+                "Successfully queued points to InfluxDB",
+                count=len(points),
+                request_id=batch.request_id,
+            )
             return True
         except Exception as e:
-            logger.error(f"Error writing to InfluxDB: {str(e)}")
+            logger.error(
+                "Error writing to InfluxDB",
+                error=str(e),
+                request_id=batch.request_id,
+            )
             raise e
 
     async def get_historical_data(

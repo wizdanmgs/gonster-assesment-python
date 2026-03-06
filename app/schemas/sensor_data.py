@@ -42,6 +42,9 @@ class SensorDataPayload(BaseModel):
 
 
 class BatchIngestRequest(BaseModel):
+    request_id: Optional[str] = Field(
+        None, description="Unique identifier for the request"
+    )
     gateway_id: str = Field(
         ..., min_length=1, max_length=100, description="Identifier of the gateway"
     )

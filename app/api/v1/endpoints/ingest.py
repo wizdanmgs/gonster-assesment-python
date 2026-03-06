@@ -45,6 +45,10 @@ async def ingest_sensor_data(
             detail=f"{MSG_MACHINE_NOT_FOUND}: {', '.join(str(i) for i in invalid_ids)}",
         )
 
+    # Generate unique request ID if not provided by client
+    if not request_body.request_id:
+        request_body.request_id = f"req-{uuid.uuid4().hex[:12]}"
+
     # Push batch processing to the service layer
     await process_sensor_data_batch(repo=sensor_repo, batch=request_body)
 
@@ -53,7 +57,7 @@ async def ingest_sensor_data(
         gateway_id=request_body.gateway_id,
         batch_size=len(request_body.payloads),
         machine_ids=[str(machine_id) for machine_id in machine_ids],
-        request_id=f"req-{uuid.uuid4().hex[:12]}",  # Mocking a request ID for demonstration
+        request_id=request_body.request_id,
     )
 
     return resp_success(
