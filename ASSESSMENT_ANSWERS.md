@@ -119,7 +119,7 @@ FUNCTION ingest_sensor_data(request_body: BatchIngestRequest):
 
     # ── 1. Validate that all requested machines exist in PostgreSQL ────────────────
     machine_ids = EXTRACT_MACHINE_IDS(request_body.payloads)
-    invalid_ids = AWAIT validate_machines_exist_in_db(machine_ids)
+    invalid_ids = AWAIT machine_service.validate_machines_exist(machine_repo, machine_ids)
     
     IF invalid_ids IS NOT EMPTY:
         THROW HTTP_400_BAD_REQUEST("Machine(s) not found: " + invalid_ids)
@@ -193,8 +193,8 @@ FUNCTION on_message(topic: string, payload: bytes):
     # ── 3.1  Extract machine_id from topic ───────────────────────────────────
     parts = topic.SPLIT("/")
     # Expected: ["factory", "<factory_id>", "machine", "<machine_id>", "telemetry"]
-    IF len(parts) != 5:
-        LOG warning "Unexpected topic shape – skipping"
+    IF len(parts) != 5 OR parts[2] != "machine" OR parts[4] != "telemetry":
+        LOG warning "Unexpected topic structure – skipping"
         RETURN
 
     machine_id = UUID(parts[3])
@@ -203,25 +203,16 @@ FUNCTION on_message(topic: string, payload: bytes):
         RETURN
 
     # ── 3.2  Decode + JSON-parse payload ─────────────────────────────────────
-    TRY:
-        data = JSON_PARSE(payload.DECODE("utf-8"))
-    CATCH (DecodeError, JSONError):
+    data = JSON_PARSE(payload.DECODE("utf-8"))
+    IF data is None:
         LOG error "Malformed payload – skipping"
         RETURN
 
     # ── 3.3  Validate via schema ─────────────────────────────────────────────
-    TRY:
-        sensor_payload = SensorDataPayload(
-            machine_id = machine_id,
-            timestamp  = data["timestamp"],
-            metrics    = SensorMetrics(
-                temperature = data.metrics.temperature,
-                pressure    = data.metrics.pressure,
-                speed       = data.metrics.speed,
-            )
-        )
-        ASSERT at_least_one_metric_is_not_null(sensor_payload.metrics)
-    CATCH ValidationError:
+    # Use internal helper to build and validate the payload
+    sensor_payload = _build_sensor_payload(machine_id, data)
+    
+    IF sensor_payload is None:
         LOG error "Schema validation failed – skipping"
         RETURN
 
@@ -353,7 +344,7 @@ To effectively support Role-Based Access Control (RBAC) without requiring a data
 **Required Payload Claims:**
 
 * **`sub` (Subject):** The unique User ID (usually a UUID). This identifies who is making the request, essential for auditing, logging, and performing user-specific actions.
-* **`role` (Custom Claim):** The user's assigned role (e.g., `OPERATOR`, `SUPERVISOR`, `MANAGEMENT`). This is the core piece of information used for RBAC decisions.
+* **`role` (Custom Claim):** The user's assigned role (e.g., `Operator`, `Supervisor`, `Management`). This is the core piece of information used for RBAC decisions.
 * **`exp` (Expiration Time):** The timestamp when the token expires. Critical for security to limit the window of opportunity if a token is compromised.
 * **`iat` (Issued At):** The timestamp when the token was created.
 * **`jti` (JWT ID):** A unique identifier for the token. Useful if we need to implement token revocation (blacklisting) before expiration.
@@ -363,7 +354,7 @@ To effectively support Role-Based Access Control (RBAC) without requiring a data
 ```json
 {
   "sub": "b2f618a3-9c8d-4e5a-8b1e-2f3a4c5d6e7f",
-  "role": "MANAGEMENT",
+  "role": "Management",
   "name": "Jane Doe",
   "exp": 1700000000,
   "iat": 1699996400,
@@ -380,10 +371,10 @@ Below is the step-by-step workflow when a user with the `MANAGEMENT` role attemp
 1. **Login & Authentication:**
     * The user sends their credentials (e.g., email/password) to the login endpoint (`POST /api/v1/auth/login`).
     * The backend validates the credentials against the database.
-    * If valid, the system retrieves the user's profile and their assigned role (`MANAGEMENT`).
+    * If valid, the system retrieves the user's profile and their assigned role (`Management`).
 2. **JWT Generation:**
     * The backend generates a JWT. It signs the token using a secure, private secret key.
-    * The payload is populated with the user's ID (`sub`) and role (`role: "MANAGEMENT"`).
+    * The payload is populated with the user's ID (`sub`) and role (`role: "Management"`).
     * The token is returned to the client in the response.
 3. **API Request:**
     * The user tries to update the configuration by making a request to `POST /api/v1/config/update`.
@@ -394,9 +385,9 @@ Below is the step-by-step workflow when a user with the `MANAGEMENT` role attemp
     * The backend checks the `exp` claim to ensure the token isn't expired. If invalid or expired, a `401 Unauthorized` is returned.
 5. **Role Verification (Authorization Middleware):**
     * After successful token validation, the authorization dependency extracts the `role` claim from the payload.
-    * The endpoint `POST /api/v1/config/update` is configured to require the `MANAGEMENT` role.
-    * The system compares the extracted role (`MANAGEMENT`) against the required role restrictions.
-    * Since the user possesses the correct role, authorization is granted. (Had the role been `OPERATOR` or `SUPERVISOR`, a `403 Forbidden` would be returned).
+    * The endpoint `POST /api/v1/config/update` is configured to require the `Management` role.
+    * The system compares the extracted role (`Management`) against the required role restrictions.
+    * Since the user possesses the correct role, authorization is granted. (Had the role been `Operator` or `Supervisor`, a `403 Forbidden` would be returned).
 6. **Request Execution & Response:**
     * The request proceeds to the endpoint's core logic.
     * The configuration is updated, and the server returns a success response (e.g., `200 OK`) to the client.
