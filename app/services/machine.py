@@ -46,3 +46,19 @@ async def delete_machine(db: AsyncSession, machine_id: uuid.UUID) -> bool:
     await db.delete(db_machine)
     await db.commit()
     return True
+
+async def validate_machines_exist(db: AsyncSession, machine_ids: List[uuid.UUID]) -> List[uuid.UUID]:
+    """
+    Validates that a list of machine IDs exist in the database.
+    Returns a list of machine IDs that DO NOT exist.
+    """
+    # Use a set to avoid duplicates and improve lookup speed
+    unique_ids = list(set(machine_ids))
+    
+    result = await db.execute(
+        select(MachineMetadata.id).where(MachineMetadata.id.in_(unique_ids))
+    )
+    existing_ids = {row[0] for row in result.all()}
+    
+    invalid_ids = [m_id for m_id in unique_ids if m_id not in existing_ids]
+    return invalid_ids
