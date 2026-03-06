@@ -1,20 +1,21 @@
 import uuid
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.schemas.machine import MachineCreate, MachineResponse, MachineUpdate
-from app.services import machine as machine_service
-from app.api.deps import get_machine_repository, RoleChecker
+
+from app.api.deps import RoleChecker, get_machine_repository
+from app.core.messages import (
+    MSG_MACHINE_DELETED,
+    MSG_MACHINE_DETAILS_RETRIEVED,
+    MSG_MACHINE_NOT_FOUND,
+    MSG_MACHINE_REGISTERED,
+    MSG_MACHINE_UPDATED,
+    MSG_MACHINES_RETRIEVED,
+)
+from app.core.responses import resp_success
 from app.models.user import UserRole
 from app.repositories.base import MachineRepository
-from app.core.responses import resp_success
-from app.core.messages import (
-    MSG_MACHINE_REGISTERED,
-    MSG_MACHINES_RETRIEVED,
-    MSG_MACHINE_DETAILS_RETRIEVED,
-    MSG_MACHINE_UPDATED,
-    MSG_MACHINE_DELETED,
-    MSG_MACHINE_NOT_FOUND,
-)
+from app.schemas.machine import MachineCreate, MachineUpdate
+from app.services import machine as machine_service
 
 router = APIRouter()
 

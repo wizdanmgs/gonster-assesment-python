@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     # Project Info
     PROJECT_NAME: str = "Real-Time Machine Data Ingestion Service"
@@ -10,12 +11,12 @@ class Settings(BaseSettings):
     # Server Config
     SERVER_HOST: str = "localhost"
     SERVER_PORT: int = 8000
-    
+
     # JWT Settings
     SECRET_KEY: str = "supersecretkey_for_assessment_only"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 hours
-    
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
+
     # Database Backend
     DB_ENGINE: str = "postgresql"
     DB_DRIVER: str = "asyncpg"
@@ -24,11 +25,11 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = ""
     DB_NAME: str = "postgres"
     DB_PORT: int = 5432
-    
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"{self.DB_ENGINE}+{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-    
+
     # InfluxDB Backend (for Sensor Data)
     INFLUXDB_URL: str
     INFLUXDB_TOKEN: str
@@ -42,5 +43,6 @@ class Settings(BaseSettings):
     MQTT_CLIENT_ID: str = "gonster-subscriber"
 
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+
 
 settings = Settings()

@@ -1,36 +1,36 @@
 import uuid
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 from fastapi import status
+
 from app.api.deps import get_machine_repository
-from app.schemas.machine import MachineResponse
-from app.models.machine import MachineMetadata
 from app.core.messages import (
-    get_message,
     MSG_MACHINE_REGISTERED,
-    MSG_MACHINES_RETRIEVED
+    MSG_MACHINES_RETRIEVED,
+    get_message,
 )
+from app.models.machine import MachineMetadata
+
 
 @pytest.fixture
 def mock_machine_repo():
     return AsyncMock()
 
+
 @pytest.mark.asyncio
 async def test_register_machine_endpoint(client, app, mock_machine_repo):
     # Arrange
     app.dependency_overrides[get_machine_repository] = lambda: mock_machine_repo
-    
+
     machine_data = {
         "name": "Injection Molder 5",
         "location": "Aisle 4",
         "sensor_type": "Pressure",
-        "status": "active"
+        "status": "active",
     }
-    
-    mock_machine = MachineMetadata(
-        id=uuid.uuid4(),
-        **machine_data
-    )
+
+    mock_machine = MachineMetadata(id=uuid.uuid4(), **machine_data)
     mock_machine_repo.create.return_value = mock_machine
 
     # Act
@@ -42,18 +42,31 @@ async def test_register_machine_endpoint(client, app, mock_machine_repo):
     assert data["message"] == get_message(MSG_MACHINE_REGISTERED)
     assert data["data"]["name"] == machine_data["name"]
     mock_machine_repo.create.assert_called_once()
-    
+
     # Cleanup
     app.dependency_overrides.clear()
+
 
 @pytest.mark.asyncio
 async def test_list_machines_endpoint(client, app, mock_machine_repo):
     # Arrange
     app.dependency_overrides[get_machine_repository] = lambda: mock_machine_repo
-    
+
     mock_machines = [
-        MachineMetadata(id=uuid.uuid4(), name="Machine 1", location="Loc 1", sensor_type="Type 1", status="active"),
-        MachineMetadata(id=uuid.uuid4(), name="Machine 2", location="Loc 2", sensor_type="Type 2", status="active")
+        MachineMetadata(
+            id=uuid.uuid4(),
+            name="Machine 1",
+            location="Loc 1",
+            sensor_type="Type 1",
+            status="active",
+        ),
+        MachineMetadata(
+            id=uuid.uuid4(),
+            name="Machine 2",
+            location="Loc 2",
+            sensor_type="Type 2",
+            status="active",
+        ),
     ]
     mock_machine_repo.get_all.return_value = mock_machines
 
@@ -67,9 +80,10 @@ async def test_list_machines_endpoint(client, app, mock_machine_repo):
     assert len(data["data"]) == 2
     assert data["data"][0]["name"] == "Machine 1"
     mock_machine_repo.get_all.assert_called_once()
-    
+
     # Cleanup
     app.dependency_overrides.clear()
+
 
 @pytest.mark.asyncio
 async def test_get_machine_not_found_endpoint(client, app, mock_machine_repo):

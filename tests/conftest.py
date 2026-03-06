@@ -8,15 +8,18 @@ from httpx import ASGITransport, AsyncClient
 
 from main import create_app
 
+
 @pytest.fixture(scope="session")
 def event_loop() -> Generator:
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
+
 @pytest.fixture
 def app() -> FastAPI:
     return create_app()
+
 
 @pytest_asyncio.fixture
 async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class MessageSubscriber(ABC):
     """
     Abstract Base Class for message subscribers (MQTT, AMQP, etc.)

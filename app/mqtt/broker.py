@@ -12,9 +12,9 @@ import aiomqtt
 
 from app.core.config import settings
 from app.core.messages import (
-    get_message,
     MSG_MQTT_CONNECTED,
     MSG_MQTT_DISCONNECTED,
+    get_message,
 )
 from app.mqtt.base import MessageSubscriber
 from app.mqtt.handler import handle_mqtt_message
@@ -40,7 +40,9 @@ class MQTTSubscriberService(MessageSubscriber):
         await task
     """
 
-    def __init__(self, sensor_repo: SensorRepository, machine_repo: MachineRepository) -> None:
+    def __init__(
+        self, sensor_repo: SensorRepository, machine_repo: MachineRepository
+    ) -> None:
         self._sensor_repo = sensor_repo
         self._machine_repo = machine_repo
         self._stop_event = asyncio.Event()

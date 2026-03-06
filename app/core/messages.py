@@ -45,18 +45,15 @@ MESSAGES: Dict[str, str] = {
     MSG_FORBIDDEN: "Operation not permitted",
     MSG_NOT_FOUND: "Resource not found",
     MSG_INTERNAL_SERVER_ERROR: "An unexpected error occurred.",
-    
     MSG_MACHINE_REGISTERED: "Machine registered successfully",
     MSG_MACHINES_RETRIEVED: "Machines retrieved successfully",
     MSG_MACHINE_DETAILS_RETRIEVED: "Machine details retrieved successfully",
     MSG_MACHINE_UPDATED: "Machine updated successfully",
     MSG_MACHINE_DELETED: "Machine deleted successfully",
     MSG_MACHINE_NOT_FOUND: "Machine not found",
-    
     MSG_INGEST_QUEUED: "Successfully queued {count} data points for processing.",
     MSG_HISTORICAL_DATA_RETRIEVED: "Historical data retrieved successfully",
     MSG_INVALID_TIME_RANGE: "start_time must be strictly before end_time",
-
     MSG_MQTT_CONNECTED: "Connected to MQTT broker at {host}:{port}, subscribed to {topic}",
     MSG_MQTT_DISCONNECTED: "MQTT subscriber stopped.",
     MSG_MQTT_MESSAGE_RECEIVED: "MQTT message received on topic: {topic}",
@@ -64,13 +61,12 @@ MESSAGES: Dict[str, str] = {
     MSG_MQTT_MACHINE_NOT_FOUND: "Machine {machine_id} not found in registry — discarding MQTT message",
     MSG_MQTT_INGEST_SUCCESS: "MQTT data for machine {machine_id} written to InfluxDB",
     MSG_MQTT_INGEST_FAILED: "Failed to write MQTT data for machine {machine_id} to InfluxDB",
-
     MSG_CREDENTIALS_INCORRECT: "Incorrect email or password",
     MSG_CREDENTIALS_INVALID: "Could not validate credentials",
     MSG_USER_INACTIVE: "Inactive user",
-
     MSG_CONFIG_UPDATED: "System configuration updated successfully",
 }
+
 
 def get_message(key: str, **kwargs: Any) -> str:
     """

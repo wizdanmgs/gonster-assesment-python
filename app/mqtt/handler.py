@@ -12,12 +12,12 @@ import uuid
 from datetime import datetime, timezone
 
 from app.core.messages import (
-    get_message,
+    MSG_MQTT_INGEST_FAILED,
+    MSG_MQTT_INGEST_SUCCESS,
+    MSG_MQTT_MACHINE_NOT_FOUND,
     MSG_MQTT_MESSAGE_RECEIVED,
     MSG_MQTT_PAYLOAD_INVALID,
-    MSG_MQTT_MACHINE_NOT_FOUND,
-    MSG_MQTT_INGEST_SUCCESS,
-    MSG_MQTT_INGEST_FAILED,
+    get_message,
 )
 from app.repositories.base import MachineRepository, SensorRepository
 from app.schemas.sensor_data import BatchIngestRequest, SensorDataPayload, SensorMetrics
@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 #  Internal helpers                                                            #
 # --------------------------------------------------------------------------- #
+
 
 def _extract_machine_id_from_topic(topic: str) -> uuid.UUID | None:
     """
@@ -56,7 +57,9 @@ def _parse_payload(raw: bytes) -> dict | None:
         return None
 
 
-def _build_sensor_payload(machine_id: uuid.UUID, data: dict) -> SensorDataPayload | None:
+def _build_sensor_payload(
+    machine_id: uuid.UUID, data: dict
+) -> SensorDataPayload | None:
     """
     Build and validate a SensorDataPayload from raw dict data.
     Handles missing/null metric fields gracefully. Returns None if invalid.
@@ -86,6 +89,7 @@ def _build_sensor_payload(machine_id: uuid.UUID, data: dict) -> SensorDataPayloa
 # --------------------------------------------------------------------------- #
 #  Public handler                                                              #
 # --------------------------------------------------------------------------- #
+
 
 async def handle_mqtt_message(
     topic: str,
@@ -127,7 +131,9 @@ async def handle_mqtt_message(
     try:
         machine = await machine_repo.get_by_id(machine_id)
         if machine is None:
-            logger.warning(get_message(MSG_MQTT_MACHINE_NOT_FOUND, machine_id=str(machine_id)))
+            logger.warning(
+                get_message(MSG_MQTT_MACHINE_NOT_FOUND, machine_id=str(machine_id))
+            )
             return
     except Exception as exc:
         logger.error("Failed to look up machine %s: %s", machine_id, exc)
@@ -139,4 +145,7 @@ async def handle_mqtt_message(
         await sensor_repo.write_batch(batch)
         logger.info(get_message(MSG_MQTT_INGEST_SUCCESS, machine_id=str(machine_id)))
     except Exception as exc:
-        logger.error(get_message(MSG_MQTT_INGEST_FAILED, machine_id=str(machine_id)) + ": %s", exc)
+        logger.error(
+            get_message(MSG_MQTT_INGEST_FAILED, machine_id=str(machine_id)) + ": %s",
+            exc,
+        )

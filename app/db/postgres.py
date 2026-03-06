@@ -10,6 +10,7 @@ AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=e
 
 Base = declarative_base()
 
+
 async def get_db():
     """Dependency for getting async postgres session"""
     async with AsyncSessionLocal() as session:

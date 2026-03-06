@@ -1,20 +1,25 @@
 import uuid
-import pytest
 from unittest.mock import AsyncMock
-from app.services import machine as machine_service
-from app.schemas.machine import MachineCreate, MachineUpdate
+
+import pytest
+
 from app.models.machine import MachineMetadata
+from app.schemas.machine import MachineCreate
+from app.services import machine as machine_service
+
 
 @pytest.mark.asyncio
 async def test_create_machine():
     # Arrange
     mock_repo = AsyncMock()
-    machine_in = MachineCreate(name="Test Machine", sensor_type="Sensor", location="Test Lab")
+    machine_in = MachineCreate(
+        name="Test Machine", sensor_type="Sensor", location="Test Lab"
+    )
     expected_machine = MachineMetadata(
         id=uuid.uuid4(),
         name=machine_in.name,
         sensor_type=machine_in.sensor_type,
-        location=machine_in.location
+        location=machine_in.location,
     )
     mock_repo.create.return_value = expected_machine
 
@@ -25,16 +30,14 @@ async def test_create_machine():
     assert result == expected_machine
     mock_repo.create.assert_called_once_with(machine_in)
 
+
 @pytest.mark.asyncio
 async def test_get_machine():
     # Arrange
     mock_repo = AsyncMock()
     machine_id = uuid.uuid4()
     expected_machine = MachineMetadata(
-        id=machine_id,
-        name="Test Machine",
-        sensor_type="Sensor",
-        location="Test Lab"
+        id=machine_id, name="Test Machine", sensor_type="Sensor", location="Test Lab"
     )
     mock_repo.get_by_id.return_value = expected_machine
 
@@ -44,6 +47,7 @@ async def test_get_machine():
     # Assert
     assert result == expected_machine
     mock_repo.get_by_id.assert_called_once_with(machine_id)
+
 
 @pytest.mark.asyncio
 async def test_get_machine_not_found():
@@ -58,6 +62,7 @@ async def test_get_machine_not_found():
     # Assert
     assert result is None
     mock_repo.get_by_id.assert_called_once_with(machine_id)
+
 
 @pytest.mark.asyncio
 async def test_validate_machines_exist():

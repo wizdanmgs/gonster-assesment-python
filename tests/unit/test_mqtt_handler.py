@@ -8,15 +8,15 @@ AsyncMock objects so no real database or broker is needed.
 import json
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-from app.mqtt.handler import handle_mqtt_message
 from app.models.machine import MachineMetadata
-
+from app.mqtt.handler import handle_mqtt_message
 
 # ── Helpers ──────────────────────────────────────────────────────────────── #
+
 
 def _make_repos(machine_exists: bool = True):
     """Return a pair of (sensor_repo_mock, machine_repo_mock)."""
@@ -38,11 +38,13 @@ def _make_repos(machine_exists: bool = True):
 
 
 def _valid_payload(machine_id: uuid.UUID) -> bytes:
-    return json.dumps({
-        "machine_id": str(machine_id),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "metrics": {"temperature": 72.5, "pressure": 3.2, "speed": None},
-    }).encode()
+    return json.dumps(
+        {
+            "machine_id": str(machine_id),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "metrics": {"temperature": 72.5, "pressure": 3.2, "speed": None},
+        }
+    ).encode()
 
 
 def _topic(machine_id: uuid.UUID) -> str:
@@ -50,6 +52,7 @@ def _topic(machine_id: uuid.UUID) -> str:
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────── #
+
 
 @pytest.mark.asyncio
 async def test_handle_valid_payload():
@@ -108,11 +111,13 @@ async def test_handle_missing_metrics():
     machine_id = uuid.uuid4()
     sensor_repo, machine_repo = _make_repos()
 
-    bad_payload = json.dumps({
-        "machine_id": str(machine_id),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "metrics": {"temperature": None, "pressure": None, "speed": None},
-    }).encode()
+    bad_payload = json.dumps(
+        {
+            "machine_id": str(machine_id),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "metrics": {"temperature": None, "pressure": None, "speed": None},
+        }
+    ).encode()
 
     await handle_mqtt_message(
         topic=_topic(machine_id),

@@ -1,23 +1,23 @@
-from contextlib import asynccontextmanager
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 
+from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import (
-    validation_exception_handler,
+    base_exception_handler,
     http_exception_handler,
-    base_exception_handler
+    validation_exception_handler,
 )
-from app.api.v1.router import api_router
+from app.db.influx import get_influx_client
 from app.db.migrations_util import run_migrations
 from app.db.postgres import AsyncSessionLocal
-from app.db.influx import get_influx_client
-from app.repositories.sqlalchemy_machine import SqlAlchemyMachineRepository
-from app.repositories.influx_sensor import InfluxSensorRepository
 from app.mqtt.broker import MQTTSubscriberService
+from app.repositories.influx_sensor import InfluxSensorRepository
+from app.repositories.sqlalchemy_machine import SqlAlchemyMachineRepository
 
 logger = logging.getLogger(__name__)
 
@@ -97,4 +97,7 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host=settings.SERVER_HOST, port=settings.SERVER_PORT, reload=True)
+
+    uvicorn.run(
+        "main:app", host=settings.SERVER_HOST, port=settings.SERVER_PORT, reload=True
+    )

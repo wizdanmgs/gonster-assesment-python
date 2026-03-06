@@ -1,10 +1,12 @@
-from abc import ABC, abstractmethod
-from typing import List, Optional, Any, Dict
 import uuid
+from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from app.models.machine import MachineMetadata
 from app.schemas.machine import MachineCreate, MachineUpdate
 from app.schemas.sensor_data import BatchIngestRequest
+
 
 class MachineRepository(ABC):
     @abstractmethod
@@ -20,7 +22,9 @@ class MachineRepository(ABC):
         pass
 
     @abstractmethod
-    async def update(self, db_machine: MachineMetadata, machine_in: MachineUpdate) -> MachineMetadata:
+    async def update(
+        self, db_machine: MachineMetadata, machine_in: MachineUpdate
+    ) -> MachineMetadata:
         pass
 
     @abstractmethod
@@ -31,6 +35,7 @@ class MachineRepository(ABC):
     async def validate_exists(self, machine_ids: List[uuid.UUID]) -> List[uuid.UUID]:
         pass
 
+
 class SensorRepository(ABC):
     @abstractmethod
     async def write_batch(self, batch: BatchIngestRequest) -> bool:
@@ -38,10 +43,10 @@ class SensorRepository(ABC):
 
     @abstractmethod
     async def get_historical_data(
-        self, 
-        machine_id: uuid.UUID, 
-        start_time: datetime, 
-        end_time: datetime, 
-        interval: Optional[str] = None
+        self,
+        machine_id: uuid.UUID,
+        start_time: datetime,
+        end_time: datetime,
+        interval: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         pass

@@ -1,16 +1,17 @@
 from datetime import timedelta
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import security
+from app.core.config import settings
+from app.core.messages import MSG_CREDENTIALS_INCORRECT, MSG_SUCCESS, MSG_USER_INACTIVE
+from app.core.responses import resp_success
 from app.db.postgres import get_db
 from app.repositories.sqlalchemy_user import SqlAlchemyUserRepository
 from app.schemas.user import Token
-from app.core import security
-from app.core.config import settings
-from app.core.responses import resp_success
-from app.core.messages import MSG_SUCCESS, MSG_CREDENTIALS_INCORRECT, MSG_USER_INACTIVE
 
 router = APIRouter()
 

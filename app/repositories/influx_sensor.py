@@ -1,14 +1,17 @@
-import uuid
 import logging
-from typing import List, Optional, Dict, Any
+import uuid
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from influxdb_client import Point
 from influxdb_client.client.influxdb_client_async import InfluxDBClientAsync
+
+from app.core.config import settings
 from app.repositories.base import SensorRepository
 from app.schemas.sensor_data import BatchIngestRequest
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class InfluxSensorRepository(SensorRepository):
     def __init__(self, client: InfluxDBClientAsync):
@@ -18,21 +21,27 @@ class InfluxSensorRepository(SensorRepository):
         write_api = self.client.write_api()
         points = []
         for payload in batch.payloads:
-            point = Point("sensor_data") \
-                .tag("machine_id", str(payload.machine_id)) \
+            point = (
+                Point("sensor_data")
+                .tag("machine_id", str(payload.machine_id))
                 .time(payload.timestamp)
-            
+            )
+
             if payload.metrics.temperature is not None:
                 point.field("temperature", payload.metrics.temperature)
             if payload.metrics.pressure is not None:
                 point.field("pressure", payload.metrics.pressure)
             if payload.metrics.speed is not None:
                 point.field("speed", payload.metrics.speed)
-                
+
             points.append(point)
-            
+
         try:
-            await write_api.write(bucket=settings.INFLUXDB_BUCKET, org=settings.INFLUXDB_ORG, record=points)
+            await write_api.write(
+                bucket=settings.INFLUXDB_BUCKET,
+                org=settings.INFLUXDB_ORG,
+                record=points,
+            )
             logger.info(f"Successfully queued {len(points)} points to InfluxDB")
             return True
         except Exception as e:
@@ -40,39 +49,41 @@ class InfluxSensorRepository(SensorRepository):
             raise e
 
     async def get_historical_data(
-        self, 
-        machine_id: uuid.UUID, 
-        start_time: datetime, 
-        end_time: datetime, 
-        interval: Optional[str] = None
+        self,
+        machine_id: uuid.UUID,
+        start_time: datetime,
+        end_time: datetime,
+        interval: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         query_api = self.client.query_api()
-        
+
         flux_query = f'''
         from(bucket: "{settings.INFLUXDB_BUCKET}")
           |> range(start: {start_time.isoformat()}, stop: {end_time.isoformat()})
           |> filter(fn: (r) => r["_measurement"] == "sensor_data")
           |> filter(fn: (r) => r["machine_id"] == "{str(machine_id)}")
         '''
-        
+
         if interval:
-            flux_query += f'''
+            flux_query += f"""
               |> aggregateWindow(every: {interval}, fn: mean, createEmpty: false)
               |> yield(name: "mean")
-            '''
-        
+            """
+
         try:
             result = await query_api.query(query=flux_query, org=settings.INFLUXDB_ORG)
-            
+
             parsed_data = []
             for table in result:
                 for record in table.records:
-                    parsed_data.append({
-                        "time": record.get_time(),
-                        "field": record.get_field(),
-                        "value": record.get_value()
-                    })
-                    
+                    parsed_data.append(
+                        {
+                            "time": record.get_time(),
+                            "field": record.get_field(),
+                            "value": record.get_value(),
+                        }
+                    )
+
             return parsed_data
         except Exception as e:
             logger.error(f"Failed to query InfluxDB: {str(e)}")
