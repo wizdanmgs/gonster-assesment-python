@@ -6,6 +6,14 @@ from app.services import machine as machine_service
 from app.api.deps import get_machine_repository
 from app.repositories.base import MachineRepository
 from app.core.responses import resp_success
+from app.core.messages import (
+    MSG_MACHINE_REGISTERED,
+    MSG_MACHINES_RETRIEVED,
+    MSG_MACHINE_DETAILS_RETRIEVED,
+    MSG_MACHINE_UPDATED,
+    MSG_MACHINE_DELETED,
+    MSG_MACHINE_NOT_FOUND
+)
 
 router = APIRouter()
 
@@ -18,7 +26,7 @@ async def register_machine(
     Register a new industrial machine in the system.
     """
     data = await machine_service.create_machine(repo=repo, machine_in=machine_in)
-    return resp_success(data=data, message="Machine registered successfully", status_code=status.HTTP_201_CREATED)
+    return resp_success(data=data, message=MSG_MACHINE_REGISTERED, status_code=status.HTTP_201_CREATED)
 
 @router.get("/")
 async def list_machines(
@@ -30,7 +38,7 @@ async def list_machines(
     List all registered machines.
     """
     data = await machine_service.get_machines(repo=repo, skip=skip, limit=limit)
-    return resp_success(data=data, message="Machines retrieved successfully")
+    return resp_success(data=data, message=MSG_MACHINES_RETRIEVED)
 
 @router.get("/{machine_id}")
 async def get_machine(
@@ -44,9 +52,9 @@ async def get_machine(
     if not db_machine:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Machine not found"
+            detail=MSG_MACHINE_NOT_FOUND
         )
-    return resp_success(data=db_machine, message="Machine details retrieved successfully")
+    return resp_success(data=db_machine, message=MSG_MACHINE_DETAILS_RETRIEVED)
 
 @router.patch("/{machine_id}")
 async def update_machine(
@@ -61,10 +69,10 @@ async def update_machine(
     if not db_machine:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Machine not found"
+            detail=MSG_MACHINE_NOT_FOUND
         )
     data = await machine_service.update_machine(repo=repo, db_machine=db_machine, machine_in=machine_in)
-    return resp_success(data=data, message="Machine updated successfully")
+    return resp_success(data=data, message=MSG_MACHINE_UPDATED)
 
 @router.delete("/{machine_id}", status_code=status.HTTP_200_OK)
 async def delete_machine(
@@ -78,6 +86,6 @@ async def delete_machine(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Machine not found"
+            detail=MSG_MACHINE_NOT_FOUND
         )
-    return resp_success(message="Machine deleted successfully")
+    return resp_success(message=MSG_MACHINE_DELETED)

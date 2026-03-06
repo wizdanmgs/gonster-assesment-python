@@ -6,6 +6,7 @@ from app.services.retrieve import get_historical_data
 from app.api.deps import get_sensor_repository
 from app.repositories.base import SensorRepository
 from app.core.responses import resp_success
+from app.core.messages import MSG_HISTORICAL_DATA_RETRIEVED, MSG_INVALID_TIME_RANGE
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ async def get_machine_data(
     if start_time >= end_time:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="start_time must be strictly before end_time"
+            detail=MSG_INVALID_TIME_RANGE
         )
     
     data = await get_historical_data(
@@ -42,5 +43,5 @@ async def get_machine_data(
             "interval": interval or "raw",
             "data": data
         },
-        message="Historical data retrieved successfully"
+        message=MSG_HISTORICAL_DATA_RETRIEVED
     )

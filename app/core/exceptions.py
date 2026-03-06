@@ -1,6 +1,7 @@
 from fastapi import Request, status, HTTPException
 from fastapi.exceptions import RequestValidationError
 from app.core.responses import resp_error
+from app.core.messages import MSG_VALIDATION_ERROR, MSG_INTERNAL_SERVER_ERROR
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,7 +12,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     """
     logger.error(f"Validation error: {exc.errors()}")
     return resp_error(
-        message="Invalid input data format or values.",
+        message=MSG_VALIDATION_ERROR,
         code="VALIDATION_ERROR",
         details=exc.errors(),
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -33,7 +34,7 @@ async def base_exception_handler(request: Request, exc: Exception):
     """
     logger.exception(f"Unhandled exception: {str(exc)}")
     return resp_error(
-        message="An unexpected error occurred.",
+        message=MSG_INTERNAL_SERVER_ERROR,
         code="INTERNAL_SERVER_ERROR",
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
     )

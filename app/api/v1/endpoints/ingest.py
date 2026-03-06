@@ -5,6 +5,7 @@ from app.services import machine as machine_service
 from app.api.deps import get_machine_repository, get_sensor_repository
 from app.repositories.base import MachineRepository, SensorRepository
 from app.core.responses import resp_success
+from app.core.messages import get_message, MSG_MACHINE_NOT_FOUND, MSG_INGEST_QUEUED
 
 router = APIRouter()
 
@@ -30,12 +31,12 @@ async def ingest_sensor_data(
     if invalid_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Machine(s) not found in registry: {', '.join(str(i) for i in invalid_ids)}"
+            detail=f"{MSG_MACHINE_NOT_FOUND}: {', '.join(str(i) for i in invalid_ids)}"
         )
 
     # Push batch processing to the service layer
     await process_sensor_data_batch(repo=sensor_repo, batch=request_body)
     return resp_success(
-        message=f"Successfully queued {len(request_body.payloads)} data points for processing.",
+        message=get_message(MSG_INGEST_QUEUED, count=len(request_body.payloads)),
         status_code=status.HTTP_202_ACCEPTED
     )
