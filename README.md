@@ -1,4 +1,4 @@
-# Real-Time Machine Data Ingestion Service
+# FactoryPulse
 
 This project implements a high-performance microservice designed for receiving, storing, and serving real-time sensor data from industrial machines. It leverages FastAPI for the web layer, MQTT for real-time data ingestion, InfluxDB for time-series storage, PostgreSQL for metadata management, and Redis for caching.
 
@@ -124,12 +124,6 @@ A utility script is provided to simulate machines and ingest data:
 ```bash
 python scripts/generate_mock_data.py
 ```
-
-## Assessment Documentation
-
-For detailed technical explanations, design decisions, and assessment answers, refer to:
-
-- [ASSESSMENT_ANSWERS.md](ASSESSMENT_ANSWERS.md)
 
 ## License
 
