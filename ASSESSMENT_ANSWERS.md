@@ -117,7 +117,7 @@ The ingestion endpoint code is available in `app/api/v1/endpoints/ingest.py`, sh
 
 FUNCTION ingest_sensor_data(request_body: BatchIngestRequest):
 
-    # ── 1. Validate that all requested machines exist in PostgreSQL ────────────────
+    # ── 1. Validate that all requested machines exist (via Repository/Cache) ───────
     machine_ids = EXTRACT_MACHINE_IDS(request_body.payloads)
     invalid_ids = AWAIT machine_service.validate_machines_exist(machine_repo, machine_ids)
     
@@ -216,7 +216,7 @@ FUNCTION on_message(topic: string, payload: bytes):
         LOG error "Schema validation failed – skipping"
         RETURN
 
-    # ── 3.4  Verify machine exists in PostgreSQL ─────────────────────────────
+    # ── 3.4  Verify machine exists (via Repository/Cache) ──────────────────────────
     machine = AWAIT machine_repo.get_by_id(machine_id)
     IF machine IS None:
         LOG warning "Unknown machine {machine_id} – discarding"
@@ -249,7 +249,7 @@ handle_mqtt_message(topic, payload)
     ├─ extract machine_id from topic
     ├─ JSON-parse payload
     ├─ Pydantic validation (SensorDataPayload)
-    ├─ machine_repo.get_by_id(machine_id)   → PostgreSQL check
+    ├─ machine_repo.get_by_id(machine_id)   → Repository/Cache check
     └─ sensor_repo.write_batch(batch)       → InfluxDB write
 ```
 
@@ -458,16 +458,33 @@ Structured JSON logging ensures that logs are machine-readable, making them easy
 
 Relational databases like PostgreSQL can become a bottleneck when serving high-frequency read requests for relatively static data, such as machine metadata. To reduce the load, we implement Redis as an in-memory caching layer using the **Cache-Aside** (lazy loading) pattern.
 
-**How it works in this context:**
+#### Architecture: Abstract Cache Backend
 
-When the `MQTTSubscriberService` receives a telemetry payload, it must verify the `machine_id` exists before writing to InfluxDB. Instead of hitting PostgreSQL every time:
+The cache layer is built behind an abstract interface (`CacheBackend`), allowing the backing store to be swapped without changing business logic. The current implementation uses `RedisCacheBackend`, which wraps `redis.asyncio` with built-in **self-healing retry logic** — on a `ConnectionError` it retries up to 3 times with a 1-second back-off before propagating the failure. The backend is initialized on startup via `init_cache()` according to the `CACHE_DB_ENGINE` setting.
 
-1. **Read from Cache:** The service first queries Redis using a key like `machine:{machine_id}`.
-2. **Cache Hit:** If the metadata is found in Redis, it is parsed and verified immediately. No PostgreSQL query is made.
-3. **Cache Miss:** If the data is absent (e.g., initial load or cache expired), the service queries PostgreSQL.
-4. **Write to Cache:** Upon retrieving the data from PostgreSQL, the service serializes it (to JSON) and stores it in Redis with a Time-To-Live (TTL), e.g., 1 hour. Subsequent requests within that hour hit the cache.
+```text
+CacheBackend (ABC)
+    └── RedisCacheBackend
+            ├── get(key)
+            ├── mget(keys)          # batch lookup
+            ├── setex(key, ttl, v)
+            ├── delete(key)
+            └── _execute_with_retry(...)   # 3-attempt self-healing
+```
 
-**Implementation Details:**
+#### How it works in this context
 
-* **Invalidation:** If a machine is updated or deleted via the REST API (`PUT /api/v1/machines/{id}`), the repository must actively invalidate (delete) the corresponding `machine:{machine_id}` key in Redis. This ensures the cache does not serve stale data.
-* **Performance:** Redis operates in-memory, changing metadata lookups from multi-millisecond disk/network I/O (PostgreSQL) to microsecond-level memory access, securely handling thousands of verifications per second.
+When the `MQTTSubscriberService` or REST ingest endpoint receives a payload, it must verify that each `machine_id` exists before writing to InfluxDB. Instead of hitting PostgreSQL for every check, `SqlAlchemyMachineRepository` implements the full Cache-Aside flow:
+
+1. **Batch cache lookup (mget):** For the `validate_exists` path (used by the ingest endpoint to validate multiple machine IDs at once), the repository calls `cache.mget([machine:id1, machine:id2, …])` in a single round-trip. IDs already cached are acknowledged immediately.
+2. **Selective DB query:** Only the IDs absent from the cache are fetched from PostgreSQL, minimising database load proportional to the cache hit rate.
+3. **Single-record lookup (get/setex):** For individual machine fetches (`get_by_id`), the result is checked in Redis first. On a cache miss, the full record is fetched from PostgreSQL and stored in Redis with a **TTL of 1 hour** (`CACHE_EXPIRATION = 3600`), keyed as `machine:{machine_id}`.
+4. **Invalidation on mutation:** When a machine is **updated** or **deleted** via the REST API, the repository calls `cache.delete(machine:{machine_id})` immediately after the DB commit, ensuring stale data is never served.
+
+| Key pattern | TTL | Invalidated on |
+| :--- | :--- | :--- |
+| `machine:{uuid}` | 3600 s (1 h) | `PUT /machines/{id}`, `DELETE /machines/{id}` |
+
+#### Performance Impact
+
+Redis operates in-memory, reducing metadata lookups from multi-millisecond disk/network I/O (PostgreSQL round-trip) to **microsecond-level** memory access. In scenarios with hundreds of MQTT messages per second, the cache absorbs the vast majority of `machine_id` existence checks, leaving PostgreSQL free for writes and infrequent cold reads.
