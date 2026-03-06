@@ -37,4 +37,4 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
     # Make sure to run the app as 'main:app' for live reload
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host=settings.SERVER_HOST, port=settings.SERVER_PORT, reload=True)
