@@ -17,8 +17,8 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application instance."""
     app = FastAPI(
         title=settings.PROJECT_NAME,
-        description="Microservice for receiving, storing, and serving real-time sensor data from industrial machines",
-        version="0.1.0",
+        description=settings.PROJECT_DESCRIPTION,
+        version=settings.PROJECT_VERSION,
         openapi_url=f"{settings.API_V1_STR}/openapi.json"
     )
 
