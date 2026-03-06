@@ -1,4 +1,5 @@
-# Part 1: API Development & Data Modeling
+
+# GONSTERS Technical Skill Assessment Answers
 
 ## Question 1.1: Database Design (Data Modeling)
 
@@ -107,11 +108,38 @@ Retrieves bounded historical data for a given machine target.
 
 ### Brief Implementation Snippet
 
-The ingestion endpoint code in FastAPI is available in `main.py`, showcasing robust Pydantic data validation logic over input formats, allowable boundaries, and timestamp checking before returning a `202 Accepted` response for decoupled batch-ingestion architectures.
+The ingestion endpoint code in FastAPI is available in `app/api/v1/endpoints/ingest.py`, showcasing robust Pydantic data validation logic over input formats, allowable boundaries, and timestamp checking before returning a `202 Accepted` response for decoupled batch-ingestion architectures.
+
+#### Ingestion Pseudocode
+
+```text
+# POST /api/v1/data/ingest
+
+FUNCTION ingest_sensor_data(request_body: BatchIngestRequest):
+
+    # ── 1. Validate that all requested machines exist in PostgreSQL ────────────────
+    machine_ids = EXTRACT_MACHINE_IDS(request_body.payloads)
+    invalid_ids = AWAIT validate_machines_exist_in_db(machine_ids)
+    
+    IF invalid_ids IS NOT EMPTY:
+        THROW HTTP_400_BAD_REQUEST("Machine(s) not found: " + invalid_ids)
+        
+    # ── 2. Structural & Semantic Validation (via Pydantic Schemas) ─────────────────
+    # Validates input automatically before executing the function logic:
+    # - gateway_id constraints
+    # - Validates UUID correct format for machine_id
+    # - Validates parameters boundaries (temperature, pressure, speed)
+    # - Checks timestamps
+    
+    # ── 3. Process Batch ───────────────────────────────────────────────────────────
+    # Send validated data batch to the service layer for writing into InfluxDB
+    AWAIT process_sensor_data_batch(sensor_repo, batch=request_body)
+    
+    # ── 4. Acknowledgment ──────────────────────────────────────────────────────────
+    RETURN HTTP_202_ACCEPTED("Sensor data ingestion queued successfully")
+```
 
 ---
-
-# Part 2: Industrial Protocols & Security
 
 ## Question 2.1: MQTT Code Flow Pseudocode
 
@@ -127,7 +155,7 @@ The `+` is a single-level MQTT wildcard that matches any machine identifier.
 
 ---
 
-#### Pseudocode
+#### MQQT Pseudocode
 
 ```text
 FUNCTION mqtt_subscriber_main():
