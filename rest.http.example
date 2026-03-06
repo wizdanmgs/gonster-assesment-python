@@ -1,9 +1,10 @@
 @BASE_URL = http://localhost:8000
+
+### Fetch Sensor Data
 @MACHINE_ID = bc4a5a56-3b74-4d5f-b66f-22addc273f12
 @START_TIME = 2026-03-03T10:00:00Z
 @END_TIME = 2026-03-05T10:01:00Z
 
-### Fetch Sensor Data
 GET {{BASE_URL}}/api/v1/data/machine/{{MACHINE_ID}}?start_time={{START_TIME}}&end_time={{END_TIME}}
 
 ### Ingest Sensor Data
