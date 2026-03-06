@@ -47,6 +47,16 @@ def setup_logging():
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
 
+    # Filter out INFO level records from the file handler
+    class ExcludeLevelFilter(logging.Filter):
+        def __init__(self, level):
+            self.level = level
+
+        def filter(self, record):
+            return record.levelno != self.level
+
+    file_handler.addFilter(ExcludeLevelFilter(logging.INFO))
+
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(formatter)
     stream_handler.setLevel(logging.INFO)
