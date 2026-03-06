@@ -28,9 +28,16 @@ class SensorDataPayload(BaseModel):
 
     @field_validator("timestamp")
     @classmethod
-    def validate_timestamp_not_in_future(cls, v: datetime):
-        if v.timestamp() > datetime.now(timezone.utc).timestamp() + 60:
+    def validate_timestamp(cls, v: datetime):
+        now = datetime.now(timezone.utc)
+        # Timestamp cannot be significantly in the future (more than 60 seconds)
+        if v.timestamp() > now.timestamp() + 60:
             raise ValueError("Timestamp cannot be significantly in the future")
+
+        # Timestamp cannot be too old (more than 7 days)
+        if v.timestamp() < (now.timestamp() - 7 * 24 * 60 * 60):
+            raise ValueError("Timestamp is too old (limit is 7 days)")
+
         return v
 
     @field_validator("metrics")
@@ -46,7 +53,11 @@ class BatchIngestRequest(BaseModel):
         None, description="Unique identifier for the request"
     )
     gateway_id: str = Field(
-        ..., min_length=1, max_length=100, description="Identifier of the gateway"
+        ...,
+        min_length=1,
+        max_length=100,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        description="Identifier of the gateway (alphanumeric, underscores, hyphens)",
     )
     payloads: List[SensorDataPayload] = Field(
         ..., min_length=1, max_length=1000, description="List of sensor data points"
