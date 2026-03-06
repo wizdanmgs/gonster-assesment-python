@@ -38,8 +38,8 @@ class InfluxSensorRepository(SensorRepository):
 
         try:
             await write_api.write(
-                bucket=settings.INFLUXDB_BUCKET,
-                org=settings.INFLUXDB_ORG,
+                bucket=settings.TSDB_BUCKET,
+                org=settings.TSDB_ORG,
                 record=points,
             )
             logger.info(f"Successfully queued {len(points)} points to InfluxDB")
@@ -58,7 +58,7 @@ class InfluxSensorRepository(SensorRepository):
         query_api = self.client.query_api()
 
         flux_query = f'''
-        from(bucket: "{settings.INFLUXDB_BUCKET}")
+        from(bucket: "{settings.TSDB_BUCKET}")
           |> range(start: {start_time.isoformat()}, stop: {end_time.isoformat()})
           |> filter(fn: (r) => r["_measurement"] == "sensor_data")
           |> filter(fn: (r) => r["machine_id"] == "{str(machine_id)}")
@@ -71,7 +71,7 @@ class InfluxSensorRepository(SensorRepository):
             """
 
         try:
-            result = await query_api.query(query=flux_query, org=settings.INFLUXDB_ORG)
+            result = await query_api.query(query=flux_query, org=settings.TSDB_ORG)
 
             parsed_data = []
             for table in result:

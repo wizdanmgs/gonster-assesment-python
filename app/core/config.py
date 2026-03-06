@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
 
-    # Database Backend
+    # SQL DB Backend (for Metadata)
     DB_ENGINE: str = "postgresql"
     DB_DRIVER: str = "asyncpg"
     DB_HOST: str = "localhost"
@@ -35,11 +35,12 @@ class Settings(BaseSettings):
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"{self.DB_ENGINE}+{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
-    # InfluxDB Backend (for Sensor Data)
-    INFLUXDB_URL: str
-    INFLUXDB_TOKEN: str
-    INFLUXDB_ORG: str
-    INFLUXDB_BUCKET: str
+    # TSDB (for Sensor Data)
+    TSDB_ENGINE: str = "influxdb"
+    TSDB_URL: str = "http://localhost:8086"
+    TSDB_TOKEN: str
+    TSDB_ORG: str
+    TSDB_BUCKET: str
 
     # Cache DB
     CACHE_DB_ENGINE: str = "redis"
