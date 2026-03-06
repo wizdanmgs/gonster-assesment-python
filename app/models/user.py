@@ -1,4 +1,3 @@
-import enum
 import uuid
 
 from sqlalchemy import Boolean, String
@@ -7,12 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.postgres import Base
-
-
-class UserRole(str, enum.Enum):
-    Operator = "Operator"
-    Supervisor = "Supervisor"
-    Management = "Management"
+from app.enums.role import UserRole
 
 
 class User(Base):
@@ -26,6 +20,6 @@ class User(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(
-        SQLAlchemyEnum(UserRole), nullable=False, default=UserRole.Operator
+        SQLAlchemyEnum(UserRole), nullable=False, default=UserRole.OPERATOR
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

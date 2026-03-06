@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends
 
 from app.api.deps import RoleChecker
 from app.api.v1.endpoints import auth, config, ingest, machines, retrieve
-from app.models.user import UserRole
+from app.enums.role import UserRole
 
-require_management = RoleChecker([UserRole.Management])
+require_management = RoleChecker([UserRole.MANAGEMENT])
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])

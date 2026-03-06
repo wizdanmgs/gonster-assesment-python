@@ -1,7 +1,7 @@
-from enum import Enum
+import enum
 
 
-class ErrorStatus(Enum):
+class ErrorStatus(str, enum.Enum):
     BAD_REQUEST = "BAD_REQUEST"
     UNAUTHORIZED = "UNAUTHORIZED"
     FORBIDDEN = "FORBIDDEN"

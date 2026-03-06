@@ -3,12 +3,12 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
-from app.models.user import UserRole
+from app.enums.role import UserRole
 
 
 class UserBase(BaseModel):
     email: EmailStr
-    role: UserRole = UserRole.Operator
+    role: UserRole = UserRole.OPERATOR
     is_active: bool = True
 
 

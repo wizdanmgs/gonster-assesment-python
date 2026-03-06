@@ -7,7 +7,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.core.security import get_password_hash
 from app.db.postgres import AsyncSessionLocal
-from app.models.user import User, UserRole
+from app.enums.role import UserRole
+from app.models.user import User
 
 
 async def seed_management_user():
@@ -22,7 +23,7 @@ async def seed_management_user():
             new_user = User(
                 email="admin@test.com",
                 hashed_password=get_password_hash("123456789"),
-                role=UserRole.Management,
+                role=UserRole.MANAGEMENT,
             )
             session.add(new_user)
             await session.commit()
