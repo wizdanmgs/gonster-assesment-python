@@ -1,0 +1,181 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  code-quality:
+    name: Lint & Static Code Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies & Linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort mypy
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Check formatting with black
+        run: black --check .
+        continue-on-error: true
+
+      - name: Check import sorting with isort
+        run: isort --check-only .
+        continue-on-error: true
+
+      - name: Lint with flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+  test:
+    name: Automated Testing (Unit & Integration)
+    needs: code-quality
+    runs-on: ubuntu-latest
+
+    # Define Service Containers mimicking production backend
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gonster_machine_metadata
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mosquitto:
+        image: eclipse-mosquitto:2
+        ports:
+          - 1883:1883
+          - 9001:9001
+
+      influxdb:
+        image: influxdb:2.7-alpine
+        env:
+          DOCKER_INFLUXDB_INIT_MODE: setup
+          DOCKER_INFLUXDB_INIT_USERNAME: admin
+          DOCKER_INFLUXDB_INIT_PASSWORD: secretpassword
+          DOCKER_INFLUXDB_INIT_ORG: gonster
+          DOCKER_INFLUXDB_INIT_BUCKET: sensor_data
+          DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: gonster_secret_token
+        ports:
+          - 8086:8086
+        options: >-
+          --health-cmd "curl -sI http://localhost:8086/ping | grep 'HTTP/1.1 204 No Content' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pytest-asyncio httpx
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      # We inject the needed configurations simulating `.env` for the tests to talk to the localhost-mapped service containers.
+      - name: Run Pytest with Coverage
+        env:
+          SERVER_HOST: 0.0.0.0
+          SERVER_PORT: 8000
+          SECRET_KEY: gonster_secret_token
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+          DB_ENGINE: postgresql
+          DB_DRIVER: asyncpg
+          DB_HOST: localhost
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: gonster_machine_metadata
+          DB_PORT: 5432
+          TSDB_ENGINE: influxdb
+          TSDB_URL: http://localhost:8086
+          TSDB_TOKEN: gonster_secret_token
+          TSDB_ORG: gonster
+          TSDB_BUCKET: sensor_data
+          CACHE_DB_ENGINE: redis
+          CACHE_DB_URL: redis://localhost:6379/0
+          MQTT_BROKER_HOST: localhost
+          MQTT_BROKER_PORT: 1883
+          MQTT_TOPIC_FILTER: factory/A/machine/+/telemetry
+          MQTT_CLIENT_ID: gonster-subscriber
+        run: |
+          pytest --cov=app --cov-report=xml
+
+  security-and-build:
+    name: Security Scanning & Artifact Build
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Security Tools (bandit, safety)
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit safety
+
+      - name: Run Bandit (SAST)
+        run: bandit -r app/ -ll -ii
+
+      - name: Run Safety (Dependency Vulnerabilities)
+        # Using continue-on-error so build persists, or omit to strictly block unpatched CVEs
+        run: safety check -r requirements.txt --continue-on-error
+
+      - name: Build Docker Image
+        run: |
+          docker build -t gonster-api:latest -f Dockerfile .
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "gonster-api:latest"
+          format: "table"
+          # Exit build if Trivy catches HIGH or CRITICAL issues in the container
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
