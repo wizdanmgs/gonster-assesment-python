@@ -1,12 +1,19 @@
 import asyncio
 import logging
+import os
 import random
+import sys
 from datetime import datetime, timedelta, timezone
 
 import httpx
 
+# Add the project root directory to the python path so 'app' can be imported
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from app.core.config import settings
+
 # Configuration
-API_BASE_URL = "http://localhost:8000/api/v1"
+API_BASE_URL = settings.SERVER_URL + settings.API_V1_STR
 NUM_MACHINES = 10
 DATA_POINTS_PER_MACHINE = 100
 BATCH_SIZE = 50
@@ -17,6 +24,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Credentials (from scripts/seed_users.py)
+SUPERVISOR_CREDENTIALS = {"username": "supervisor@test.com", "password": "123456789"}
+OPERATOR_CREDENTIALS = {"username": "operator@test.com", "password": "123456789"}
+
 # Predefined machine configurations to ensure stability
 MOCK_MACHINES = [
     {
@@ -26,6 +37,20 @@ MOCK_MACHINES = [
     }
     for i in range(NUM_MACHINES)
 ]
+
+
+async def get_access_token(client: httpx.AsyncClient, email: str, password: str) -> str:
+    """Login and return an access token."""
+    try:
+        response = await client.post(
+            f"{API_BASE_URL}/auth/login",
+            data={"username": email, "password": password},
+        )
+        response.raise_for_status()
+        return response.json()["data"]["access_token"]
+    except Exception as e:
+        logger.error(f"Failed to login user {email}: {str(e)}")
+        raise e
 
 
 def generate_sensor_data(machine_id: str, timestamp: datetime) -> dict:
@@ -41,13 +66,16 @@ def generate_sensor_data(machine_id: str, timestamp: datetime) -> dict:
     }
 
 
-async def ensure_machine_exists(client: httpx.AsyncClient, machine_cfg: dict) -> str:
+async def ensure_machine_exists(
+    client: httpx.AsyncClient, machine_cfg: dict, access_token: str
+) -> str:
     """Check if a machine exists by name; register if not. Returns the machine ID."""
+    headers = {"Authorization": f"Bearer {access_token}"}
     try:
         # List all machines to find by name
-        response = await client.get(f"{API_BASE_URL}/machines/")
+        response = await client.get(f"{API_BASE_URL}/machines/", headers=headers)
         response.raise_for_status()
-        machines = response.json()
+        machines = response.json()["data"]
 
         for m in machines:
             if m["name"] == machine_cfg["name"]:
@@ -59,10 +87,10 @@ async def ensure_machine_exists(client: httpx.AsyncClient, machine_cfg: dict) ->
         # If not found, register it
         logger.info(f"Registering new machine: {machine_cfg['name']}")
         register_response = await client.post(
-            f"{API_BASE_URL}/machines/", json=machine_cfg
+            f"{API_BASE_URL}/machines/", json=machine_cfg, headers=headers
         )
         register_response.raise_for_status()
-        new_machine = register_response.json()
+        new_machine = register_response.json()["data"]
         logger.info(
             f"Successfully registered machine '{machine_cfg['name']}' with ID: {new_machine['id']}"
         )
@@ -73,12 +101,15 @@ async def ensure_machine_exists(client: httpx.AsyncClient, machine_cfg: dict) ->
         raise e
 
 
-async def send_batch(client: httpx.AsyncClient, batch: list) -> bool:
+async def send_batch(client: httpx.AsyncClient, batch: list, access_token: str) -> bool:
     """Send a batch of sensor data to the API."""
     payload = {"gateway_id": f"mock-gateway-{random.randint(1, 5)}", "payloads": batch}
+    headers = {"Authorization": f"Bearer {access_token}"}
 
     try:
-        response = await client.post(f"{API_BASE_URL}/data/ingest", json=payload)
+        response = await client.post(
+            f"{API_BASE_URL}/data/ingest", json=payload, headers=headers
+        )
         response.raise_for_status()
         logger.info(
             f"Successfully sent batch of {len(batch)} records. Status: {response.status_code}"
@@ -98,11 +129,22 @@ async def main():
     logger.info("Starting mock data generation script.")
 
     async with httpx.AsyncClient() as client:
+        # Step 0: Authentication
+        logger.info("Step 0: Authenticating users...")
+        supervisor_token = await get_access_token(
+            client,
+            SUPERVISOR_CREDENTIALS["username"],
+            SUPERVISOR_CREDENTIALS["password"],
+        )
+        operator_token = await get_access_token(
+            client, OPERATOR_CREDENTIALS["username"], OPERATOR_CREDENTIALS["password"]
+        )
+
         # Step 1: Ensure all machines are registered and get their IDs
         logger.info("Step 1: Synchronizing machine metadata with PostgreSQL...")
         machine_ids = []
         for cfg in MOCK_MACHINES:
-            m_id = await ensure_machine_exists(client, cfg)
+            m_id = await ensure_machine_exists(client, cfg, supervisor_token)
             machine_ids.append(m_id)
 
         logger.info("Step 2: Generating and sending sensor data...")
@@ -131,7 +173,7 @@ async def main():
             for i in range(0, len(all_payloads), BATCH_SIZE)
         ]
 
-        tasks = [send_batch(client, batch) for batch in batches]
+        tasks = [send_batch(client, batch, operator_token) for batch in batches]
 
         # Use asyncio.gather to send batches concurrently
         results = await asyncio.gather(*tasks)

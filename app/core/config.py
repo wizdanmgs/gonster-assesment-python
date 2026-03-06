@@ -9,8 +9,13 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Server Config
+    SERVER_PROTOCOL: str = "http"
     SERVER_HOST: str = "localhost"
     SERVER_PORT: int = 8000
+
+    @property
+    def SERVER_URL(self) -> str:
+        return f"{self.SERVER_PROTOCOL}://{self.SERVER_HOST}:{self.SERVER_PORT}"
 
     # JWT Settings
     SECRET_KEY: str = "supersecretkey_for_assessment_only"
