@@ -85,7 +85,6 @@ async def init_cache() -> None:
 
 
 async def close_cache() -> None:
-    global cache_backend
     if cache_backend:
         await cache_backend.close()
 
