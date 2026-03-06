@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query, Path, status
+from fastapi import APIRouter, HTTPException, Query, Path, status, Depends
 from typing import Optional
 from datetime import datetime
 import uuid
 from app.services.retrieve import get_historical_data
+from app.api.deps import get_sensor_repository
+from app.repositories.base import SensorRepository
 
 router = APIRouter()
 
@@ -11,7 +13,8 @@ async def get_machine_data(
     machine_id: uuid.UUID = Path(..., description="UUID of the machine"),
     start_time: datetime = Query(..., description="ISO 8601 Datetime for start of window"),
     end_time: datetime = Query(..., description="ISO 8601 Datetime for end of window"),
-    interval: Optional[str] = Query(None, description="Aggregation interval e.g., '1m', '1h', '1d'")
+    interval: Optional[str] = Query(None, description="Aggregation interval e.g., '1m', '1h', '1d'"),
+    repo: SensorRepository = Depends(get_sensor_repository)
 ):
     """
     Retrieve historical sensor data for a specific machine.
@@ -24,6 +27,7 @@ async def get_machine_data(
     
     try:
         data = await get_historical_data(
+            repo=repo,
             machine_id=machine_id,
             start_time=start_time,
             end_time=end_time,

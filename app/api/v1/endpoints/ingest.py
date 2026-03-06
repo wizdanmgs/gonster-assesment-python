@@ -1,16 +1,17 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.sensor_data import BatchIngestRequest
 from app.services.ingest import process_sensor_data_batch
 from app.services import machine as machine_service
-from app.db.postgres import get_db
+from app.api.deps import get_machine_repository, get_sensor_repository
+from app.repositories.base import MachineRepository, SensorRepository
 
 router = APIRouter()
 
 @router.post("/ingest", status_code=status.HTTP_202_ACCEPTED)
 async def ingest_sensor_data(
     request_body: BatchIngestRequest,
-    db: AsyncSession = Depends(get_db)
+    machine_repo: MachineRepository = Depends(get_machine_repository),
+    sensor_repo: SensorRepository = Depends(get_sensor_repository)
 ):
     """
     Ingest a batch of sensor data from an industrial gateway.
@@ -23,7 +24,7 @@ async def ingest_sensor_data(
     """
     # Validate that all machine_ids exist in PostgreSQL
     machine_ids = [payload.machine_id for payload in request_body.payloads]
-    invalid_ids = await machine_service.validate_machines_exist(db=db, machine_ids=machine_ids)
+    invalid_ids = await machine_service.validate_machines_exist(repo=machine_repo, machine_ids=machine_ids)
     
     if invalid_ids:
         raise HTTPException(
@@ -33,7 +34,7 @@ async def ingest_sensor_data(
 
     # Push batch processing to the service layer
     try:
-        await process_sensor_data_batch(batch=request_body)
+        await process_sensor_data_batch(repo=sensor_repo, batch=request_body)
         return {"status": "success", "message": f"Successfully queued {len(request_body.payloads)} data points for processing."}
     except Exception as e:
         raise HTTPException(
