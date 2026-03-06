@@ -6,7 +6,7 @@ from app.enums.role import UserRole
 
 allow_svr = RoleChecker([UserRole.SUPERVISOR])
 allow_opr = RoleChecker([UserRole.OPERATOR])
-allow_mgr = RoleChecker([UserRole.MANAGEMENT])
+allow_mng = RoleChecker([UserRole.MANAGEMENT])
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
@@ -32,5 +32,5 @@ api_router.include_router(
     config.router,
     prefix="/config",
     tags=["System Configuration"],
-    dependencies=[Depends(allow_mgr)],
+    dependencies=[Depends(allow_mng)],
 )

@@ -1,26 +1,22 @@
 @BASE_URL = http://localhost:8000
-@TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNWIwZWI3ZC1lNzFhLTRjODAtOWI3Zi0wOGI1NWNiZWZmNTIiLCJyb2xlIjoiTWFuYWdlbWVudCIsImV4cCI6MTc3MjgxNDA5MCwiaWF0IjoxNzcyODE0MDMwfQ.0EGsLRecpB0ciHCtp9RpLeeRwy8wtRdJgSOkAAQxYKE
+@TOKEN_MNG = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MzkyY2MwYS03NWNhLTQyYWQtOTQzYi03ZWYzMjk4NTQ4ZWIiLCJyb2xlIjoiTWFuYWdlbWVudCIsImV4cCI6MTc3MjkxMTQ4MCwiaWF0IjoxNzcyODI1MDgwfQ.LPZyX-SxPn9KREMdMBmaQLaxdP4TY1u-SRwcopI6g4U
+@TOKEN_SVR = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MGNiODg2Ni04NzhmLTQ1ZjctYmUyYS05NzZiYjE1ZDA5ODIiLCJyb2xlIjoiU3VwZXJ2aXNvciIsImV4cCI6MTc3MjkxMTQ5NCwiaWF0IjoxNzcyODI1MDk0fQ.9rsIG7FNRyQCS1nC_BgoOzXAvGjn4AL3tnlASoIjpxI
+@TOKEN_OPR = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMjhkM2Q1Zi02YTI5LTQ4OTktYTE2My03ZmJiZjYzNzU2MTYiLCJyb2xlIjoiT3BlcmF0b3IiLCJleHAiOjE3NzI5MTE2MzYsImlhdCI6MTc3MjgyNTIzNn0.5Afo_ac7kv32wl_5t2QkbOD7Zr66KxgoNosKtg59_GM
 
-###
-@USERNAME = admin@test.com
+### Login
+@USERNAME = operator@test.com
 @PASSWORD=123456789
 
-POST /api/v1/auth/login HTTP/1.1
-Host: localhost:8000
-Accept: application/json
+POST {{BASE_URL}}/api/v1/auth/login HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
-Content-Length: 53
 
 username={{USERNAME}}&password={{PASSWORD}}
 
-###
+### Update Config
 
-POST /api/v1/config/update HTTP/1.1
-Host: localhost:8000
-Accept: application/json
-Authorization: Bearer {{TOKEN}}
+POST {{BASE_URL}}/api/v1/config/update HTTP/1.1
+Authorization: Bearer {{TOKEN_MNG}}
 Content-Type: application/json
-Content-Length: 62
 
 {
   "setting_key": "max_connections",
@@ -33,11 +29,11 @@ Content-Length: 62
 @END_TIME = 2026-03-05T10:01:00Z
 
 GET {{BASE_URL}}/api/v1/data/machine/{{MACHINE_ID}}?start_time={{START_TIME}}&end_time={{END_TIME}}
-Authorization: Bearer {{TOKEN}}
+Authorization: Bearer {{TOKEN_OPR}}
 
 ### Ingest Sensor Data
 POST {{BASE_URL}}/api/v1/data/ingest
-Authorization: Bearer {{TOKEN}}
+Authorization: Bearer {{TOKEN_OPR}}
 Content-Type: application/json
 
 {

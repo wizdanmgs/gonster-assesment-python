@@ -353,7 +353,7 @@ To effectively support Role-Based Access Control (RBAC) without requiring a data
 **Required Payload Claims:**
 
 * **`sub` (Subject):** The unique User ID (usually a UUID). This identifies who is making the request, essential for auditing, logging, and performing user-specific actions.
-* **`role` (Custom Claim):** The user's assigned role (e.g., `Operator`, `Supervisor`, `Management`). This is the core piece of information used for RBAC decisions.
+* **`role` (Custom Claim):** The user's assigned role (e.g., `OPERATOR`, `SUPERVISOR`, `MANAGEMENT`). This is the core piece of information used for RBAC decisions.
 * **`exp` (Expiration Time):** The timestamp when the token expires. Critical for security to limit the window of opportunity if a token is compromised.
 * **`iat` (Issued At):** The timestamp when the token was created.
 * **`jti` (JWT ID):** A unique identifier for the token. Useful if we need to implement token revocation (blacklisting) before expiration.
@@ -363,7 +363,7 @@ To effectively support Role-Based Access Control (RBAC) without requiring a data
 ```json
 {
   "sub": "b2f618a3-9c8d-4e5a-8b1e-2f3a4c5d6e7f",
-  "role": "Management",
+  "role": "MANAGEMENT",
   "name": "Jane Doe",
   "exp": 1700000000,
   "iat": 1699996400,
@@ -375,15 +375,15 @@ To effectively support Role-Based Access Control (RBAC) without requiring a data
 
 ### 2. Authorization Flow
 
-Below is the step-by-step workflow when a user with the `Management` role attempts to access a sensitive endpoint like `POST /api/v1/config/update`:
+Below is the step-by-step workflow when a user with the `MANAGEMENT` role attempts to access a sensitive endpoint like `POST /api/v1/config/update`:
 
 1. **Login & Authentication:**
     * The user sends their credentials (e.g., email/password) to the login endpoint (`POST /api/v1/auth/login`).
     * The backend validates the credentials against the database.
-    * If valid, the system retrieves the user's profile and their assigned role (`Management`).
+    * If valid, the system retrieves the user's profile and their assigned role (`MANAGEMENT`).
 2. **JWT Generation:**
     * The backend generates a JWT. It signs the token using a secure, private secret key.
-    * The payload is populated with the user's ID (`sub`) and role (`role: "Management"`).
+    * The payload is populated with the user's ID (`sub`) and role (`role: "MANAGEMENT"`).
     * The token is returned to the client in the response.
 3. **API Request:**
     * The user tries to update the configuration by making a request to `POST /api/v1/config/update`.
@@ -394,9 +394,9 @@ Below is the step-by-step workflow when a user with the `Management` role attemp
     * The backend checks the `exp` claim to ensure the token isn't expired. If invalid or expired, a `401 Unauthorized` is returned.
 5. **Role Verification (Authorization Middleware):**
     * After successful token validation, the authorization dependency extracts the `role` claim from the payload.
-    * The endpoint `POST /api/v1/config/update` is configured to require the `Management` role.
-    * The system compares the extracted role (`Management`) against the required role restrictions.
-    * Since the user possesses the correct role, authorization is granted. (Had the role been `Operator` or `Supervisor`, a `403 Forbidden` would be returned).
+    * The endpoint `POST /api/v1/config/update` is configured to require the `MANAGEMENT` role.
+    * The system compares the extracted role (`MANAGEMENT`) against the required role restrictions.
+    * Since the user possesses the correct role, authorization is granted. (Had the role been `OPERATOR` or `SUPERVISOR`, a `403 Forbidden` would be returned).
 6. **Request Execution & Response:**
     * The request proceeds to the endpoint's core logic.
     * The configuration is updated, and the server returns a success response (e.g., `200 OK`) to the client.
