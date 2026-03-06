@@ -1,12 +1,12 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: gonster-postgres
+    container_name: your-postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gonster_machine_metadata
+      POSTGRES_DB: your_machine_metadata
     ports:
       - "5432:5432"
     volumes:
@@ -14,15 +14,15 @@ services:
 
   tsdb:
     image: influxdb:2.7-alpine
-    container_name: gonster-influxdb
+    container_name: your-influxdb
     restart: always
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: admin
       DOCKER_INFLUXDB_INIT_PASSWORD: secretpassword
-      DOCKER_INFLUXDB_INIT_ORG: gonster
+      DOCKER_INFLUXDB_INIT_ORG: your-org
       DOCKER_INFLUXDB_INIT_BUCKET: sensor_data
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: gonster_secret_token
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: your_secret_token
     ports:
       - "8086:8086"
     volumes:
@@ -31,7 +31,7 @@ services:
 
   cache:
     image: redis:7-alpine
-    container_name: gonster-redis
+    container_name: your-redis
     restart: always
     ports:
       - "6379:6379"
@@ -40,7 +40,7 @@ services:
 
   mqtt:
     image: eclipse-mosquitto:2
-    container_name: gonster-mosquitto
+    container_name: your-mosquitto
     restart: always
     ports:
       - "1883:1883"
@@ -54,7 +54,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: gonster-api
+    container_name: your-api
     restart: always
     depends_on:
       - db
@@ -66,7 +66,7 @@ services:
     environment:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8000
-      - SECRET_KEY=gonster_secret_token
+      - SECRET_KEY=your_secret_token
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440
       - DB_ENGINE=postgresql
@@ -74,19 +74,19 @@ services:
       - DB_HOST=db
       - DB_USER=postgres
       - DB_PASSWORD=postgres
-      - DB_NAME=gonster_machine_metadata
+      - DB_NAME=your_machine_metadata
       - DB_PORT=5432
       - TSDB_ENGINE=influxdb
       - TSDB_URL=http://tsdb:8086
-      - TSDB_TOKEN=gonster_secret_token
-      - TSDB_ORG=gonster
+      - TSDB_TOKEN=your_secret_token
+      - TSDB_ORG=your-org
       - TSDB_BUCKET=sensor_data
       - CACHE_DB_ENGINE=redis
       - CACHE_DB_URL=redis://cache:6379/0
       - MQTT_BROKER_HOST=mqtt
       - MQTT_BROKER_PORT=1883
       - MQTT_TOPIC_FILTER=factory/A/machine/+/telemetry
-      - MQTT_CLIENT_ID=gonster-subscriber
+      - MQTT_CLIENT_ID=your-subscriber
 
 volumes:
   pgdata:

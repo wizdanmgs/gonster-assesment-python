@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     MQTT_BROKER_HOST: str = "localhost"
     MQTT_BROKER_PORT: int = 1883
     MQTT_TOPIC_FILTER: str = "factory/A/machine/+/telemetry"
-    MQTT_CLIENT_ID: str = "gonster-subscriber"
+    MQTT_CLIENT_ID: str = "machine-data-ingestion-subscriber"
 
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
 
