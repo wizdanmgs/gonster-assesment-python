@@ -6,12 +6,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 
 from app.api.v1.router import api_router
+from app.core.cache import close_cache, init_cache
 from app.core.config import settings
 from app.core.exceptions import (
     base_exception_handler,
     http_exception_handler,
     validation_exception_handler,
 )
+from app.core.logger import setup_logging
 from app.db.influx import get_influx_client
 from app.db.migrations_util import run_migrations
 from app.db.postgres import AsyncSessionLocal
@@ -20,6 +22,9 @@ from app.repositories.influx_sensor import InfluxSensorRepository
 from app.repositories.sqlalchemy_machine import SqlAlchemyMachineRepository
 
 logger = logging.getLogger(__name__)
+
+# Setup structured logging
+setup_logging()
 
 # Run DB migrations synchronously before app init
 run_migrations()
@@ -33,6 +38,9 @@ async def lifespan(app: FastAPI):
     On startup  → launch the MQTT subscriber as a background asyncio Task.
     On shutdown → signal the subscriber to stop and await its clean exit.
     """
+    # Initialize Cache connection
+    await init_cache()
+
     # Build repositories from existing DB helper generators
     async with AsyncSessionLocal() as session:
         machine_repo = SqlAlchemyMachineRepository(session)
@@ -70,6 +78,9 @@ async def lifespan(app: FastAPI):
                 await influx_gen.__anext__()
             except StopAsyncIteration:
                 pass
+
+            # Close Redis cache
+            await close_cache()
 
 
 def create_app() -> FastAPI:

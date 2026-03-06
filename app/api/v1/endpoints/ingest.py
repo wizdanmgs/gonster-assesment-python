@@ -1,3 +1,6 @@
+import uuid
+
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import get_machine_repository, get_sensor_repository
@@ -9,6 +12,7 @@ from app.services import machine as machine_service
 from app.services.ingest import process_sensor_data_batch
 
 router = APIRouter()
+logger = structlog.get_logger(__name__)
 
 
 @router.post(
@@ -43,6 +47,15 @@ async def ingest_sensor_data(
 
     # Push batch processing to the service layer
     await process_sensor_data_batch(repo=sensor_repo, batch=request_body)
+
+    logger.debug(
+        "Payload validation successful",
+        gateway_id=request_body.gateway_id,
+        batch_size=len(request_body.payloads),
+        machine_ids=[str(machine_id) for machine_id in machine_ids],
+        request_id=f"req-{uuid.uuid4().hex[:12]}",  # Mocking a request ID for demonstration
+    )
+
     return resp_success(
         message=get_message(MSG_INGEST_QUEUED, count=len(request_body.payloads)),
         status_code=status.HTTP_202_ACCEPTED,

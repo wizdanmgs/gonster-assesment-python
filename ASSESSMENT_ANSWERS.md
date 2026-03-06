@@ -391,3 +391,83 @@ Below is the step-by-step workflow when a user with the `MANAGEMENT` role attemp
 6. **Request Execution & Response:**
     * The request proceeds to the endpoint's core logic.
     * The configuration is updated, and the server returns a success response (e.g., `200 OK`) to the client.
+
+---
+
+## Question 3.1: Logging and Caching
+
+### 1. Logging Structure
+
+Structured JSON logging ensures that logs are machine-readable, making them easy to ingest, index, and search using centralized logging tools (like ELK Stack or Datadog). We utilize `structlog` to achieve this.
+
+**DEBUG (Successful incoming payload validation):**
+
+```json
+{
+  "timestamp": "2023-10-27T10:00:01.123Z",
+  "level": "debug",
+  "event": "Payload validation successful",
+  "logger": "app.api.v1.endpoints.ingest",
+  "gateway_id": "gw-001-factoryA",
+  "batch_size": 2,
+  "machine_ids": ["123e4567-e89b-12d3-a456-426614174000"],
+  "request_id": "req-9a8b7c6d-5e4f"
+}
+```
+
+*Context:* High-throughput endpoints should log DEBUG statements with batch sizes and request correlation IDs (`request_id`) to track lifecycle without bloating production logs (DEBUG is usually off in prod).
+
+**WARNING (Temporary Redis connection loss, self-healing retry is initiated):**
+
+```json
+{
+  "timestamp": "2023-10-27T10:05:32.456Z",
+  "level": "warning",
+  "event": "Redis connection lost, initiating retry",
+  "logger": "app.core.cache",
+  "redis_url": "redis://localhost:6379/0",
+  "attempt": 1,
+  "max_retries": 3,
+  "error": "ConnectionError: Error 111 connecting to localhost:6379. Connection refused."
+}
+```
+
+*Context:* Warnings indicate a temporary, recoverable failure. Including `attempt` and `max_retries` shows the current state of self-healing mechanisms. The base `error` message is crucial for debugging infrastructure issues.
+
+**ERROR (Failed to persist data to SQL DB after 3 retry attempts):**
+
+```json
+{
+  "timestamp": "2023-10-27T10:12:45.789Z",
+  "level": "error",
+  "event": "DB persistence failed permanently",
+  "logger": "app.repositories.sqlalchemy_machine",
+  "machine_id": "123e4567-e89b-12d3-a456-426614174000",
+  "retries_exhausted": true,
+  "total_attempts": 3,
+  "error": "OperationalError: (psycopg2.OperationalError) FATAL:  terminating connection due to administrator command",
+  "action": "Data point dropped or pushed to DLQ"
+}
+```
+
+*Context:* An ERROR log should unequivocally state that self-healing (`retries_exhausted`) failed. Providing the `machine_id` allows support to trace which data was lost, and indicating the next `action` (like pushing to a Dead Letter Queue) is vital for data integrity tracking.
+
+---
+
+### 2. Caching with Redis (Cache-Aside Pattern)
+
+Relational databases like PostgreSQL can become a bottleneck when serving high-frequency read requests for relatively static data, such as machine metadata. To reduce the load, we implement Redis as an in-memory caching layer using the **Cache-Aside** (lazy loading) pattern.
+
+**How it works in this context:**
+
+When the `MQTTSubscriberService` receives a telemetry payload, it must verify the `machine_id` exists before writing to InfluxDB. Instead of hitting PostgreSQL every time:
+
+1. **Read from Cache:** The service first queries Redis using a key like `machine:{machine_id}`.
+2. **Cache Hit:** If the metadata is found in Redis, it is parsed and verified immediately. No PostgreSQL query is made.
+3. **Cache Miss:** If the data is absent (e.g., initial load or cache expired), the service queries PostgreSQL.
+4. **Write to Cache:** Upon retrieving the data from PostgreSQL, the service serializes it (to JSON) and stores it in Redis with a Time-To-Live (TTL), e.g., 1 hour. Subsequent requests within that hour hit the cache.
+
+**Implementation Details:**
+
+* **Invalidation:** If a machine is updated or deleted via the REST API (`PUT /api/v1/machines/{id}`), the repository must actively invalidate (delete) the corresponding `machine:{machine_id}` key in Redis. This ensures the cache does not serve stale data.
+* **Performance:** Redis operates in-memory, changing metadata lookups from multi-millisecond disk/network I/O (PostgreSQL) to microsecond-level memory access, securely handling thousands of verifications per second.

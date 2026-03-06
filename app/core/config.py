@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     INFLUXDB_ORG: str
     INFLUXDB_BUCKET: str
 
+    # Cache DB
+    CACHE_DB_ENGINE: str = "redis"
+    CACHE_DB_URL: str = "redis://localhost:6379/0"
+
     # MQTT Broker (for Real-Time Sensor Ingestion)
     MQTT_BROKER_HOST: str = "localhost"
     MQTT_BROKER_PORT: int = 1883
