@@ -4,13 +4,15 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import status
 
-from app.api.deps import get_machine_repository
+from app.api.deps import get_current_user, get_machine_repository
 from app.core.messages import (
     MSG_MACHINE_REGISTERED,
     MSG_MACHINES_RETRIEVED,
     get_message,
 )
+from app.enums.role import UserRole
 from app.models.machine import MachineMetadata
+from app.models.user import User
 
 
 @pytest.fixture
@@ -18,10 +20,16 @@ def mock_machine_repo():
     return AsyncMock()
 
 
+@pytest.fixture
+def mock_user():
+    return User(id=uuid.uuid4(), role=UserRole.SUPERVISOR)
+
+
 @pytest.mark.asyncio
-async def test_register_machine_endpoint(client, app, mock_machine_repo):
+async def test_register_machine_endpoint(client, app, mock_machine_repo, mock_user):
     # Arrange
     app.dependency_overrides[get_machine_repository] = lambda: mock_machine_repo
+    app.dependency_overrides[get_current_user] = lambda: mock_user
 
     machine_data = {
         "name": "Injection Molder 5",
@@ -48,9 +56,10 @@ async def test_register_machine_endpoint(client, app, mock_machine_repo):
 
 
 @pytest.mark.asyncio
-async def test_list_machines_endpoint(client, app, mock_machine_repo):
+async def test_list_machines_endpoint(client, app, mock_machine_repo, mock_user):
     # Arrange
     app.dependency_overrides[get_machine_repository] = lambda: mock_machine_repo
+    app.dependency_overrides[get_current_user] = lambda: mock_user
 
     mock_machines = [
         MachineMetadata(
@@ -86,9 +95,12 @@ async def test_list_machines_endpoint(client, app, mock_machine_repo):
 
 
 @pytest.mark.asyncio
-async def test_get_machine_not_found_endpoint(client, app, mock_machine_repo):
+async def test_get_machine_not_found_endpoint(
+    client, app, mock_machine_repo, mock_user
+):
     # Arrange
     app.dependency_overrides[get_machine_repository] = lambda: mock_machine_repo
+    app.dependency_overrides[get_current_user] = lambda: mock_user
     mock_machine_repo.get_by_id.return_value = None
     machine_id = uuid.uuid4()
 
