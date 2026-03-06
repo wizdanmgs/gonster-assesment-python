@@ -3,7 +3,9 @@ from typing import Any, Dict
 # Message keys
 MSG_SUCCESS = "SUCCESS"
 MSG_ERROR = "ERROR"
-MSG_VALIDATION_ERROR = "VALIDATION_ERROR"
+MSG_BAD_REQUEST = "BAD_REQUEST"
+MSG_VALIDATION_ERROR = "UNPROCESSABLE_ENTITY"
+MSG_UNAUTHORIZED = "UNAUTHORIZED"
 MSG_FORBIDDEN = "FORBIDDEN"
 MSG_NOT_FOUND = "NOT_FOUND"
 MSG_INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
@@ -41,7 +43,9 @@ MSG_CONFIG_UPDATED = "CONFIG_UPDATED"
 MESSAGES: Dict[str, str] = {
     MSG_SUCCESS: "Success",
     MSG_ERROR: "Error",
+    MSG_BAD_REQUEST: "Incorrect input.",
     MSG_VALIDATION_ERROR: "Invalid input data format or values.",
+    MSG_UNAUTHORIZED: "Authentication credentials were not provided or are invalid.",
     MSG_FORBIDDEN: "Operation not permitted",
     MSG_NOT_FOUND: "Resource not found",
     MSG_INTERNAL_SERVER_ERROR: "An unexpected error occurred.",

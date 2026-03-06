@@ -1,12 +1,14 @@
-from fastapi import APIRouter, HTTPException, Query, Path, status, Depends
-from typing import Optional
-from datetime import datetime
 import uuid
-from app.services.retrieve import get_historical_data
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+
 from app.api.deps import get_sensor_repository
-from app.repositories.base import SensorRepository
-from app.core.responses import resp_success
 from app.core.messages import MSG_HISTORICAL_DATA_RETRIEVED, MSG_INVALID_TIME_RANGE
+from app.core.responses import resp_success
+from app.repositories.base import SensorRepository
+from app.services.retrieve import get_historical_data
 
 router = APIRouter()
 
