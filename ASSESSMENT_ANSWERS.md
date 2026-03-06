@@ -1,0 +1,315 @@
+# Part 1: API Development & Data Modeling
+
+## Question 1.1: Database Design (Data Modeling)
+
+### Machine Metadata (PostgreSQL)
+
+We use PostgreSQL as a relational database to store machine metadata. It is well-suited for structured data that changes infrequently and requires ACID compliance.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE machine_metadata (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255) NOT NULL,
+    sensor_type VARCHAR(100) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for frequent lookups and filtering
+CREATE INDEX idx_machine_location ON machine_metadata(location);
+CREATE INDEX idx_machine_status ON machine_metadata(status);
+```
+
+---
+
+### Sensor Data (InfluxDB)
+
+InfluxDB is utilized for the high-frequency time-series sensor data because of its high write throughput and optimized time-window aggregations.
+
+* **Measurement**: `sensor_data` (This is akin to an SQL table, containing all metrics).
+* **Tags** (Indexed, strings, used for filtering/grouping operations):
+  * `machine_id` (UUID string matching PostgreSQL)
+  * `location` (String, optional redundancy for faster geographical queries without joining Postgres)
+  * `sensor_type` (String)
+* **Fields** (Not indexed, containing the actual telemetry values):
+  * `temperature` (Float)
+  * `pressure` (Float)
+  * `speed` (Float)
+* **Timestamp**: The primary index, stored with nanosecond precision.
+
+---
+
+### Optimization Strategy for Analytics
+
+To ensure rapid query execution for weekly/monthly historical analytics across hundreds of machines, we implement the following:
+
+1. **Downsampling (Continuous Queries / Tasks)**:
+    Raw sensor data is typically needed only for immediate real-time monitoring. For historical analytics, querying millions of raw data points directly is slow. We create InfluxDB background Tasks to periodically roll up data (e.g., executing `mean()`, `max()`, `min()` over 5-minute, 1-hour, or 1-day windows) and store the results in separate, aggregated buckets. Weekly/monthly queries are directed to these downsampled buckets, parsing drastically less data.
+2. **Data Retention Policies (RPs)**:
+    * **Raw Bucket**: Keep high-resolution data for a short period (e.g., 7 or 14 days).
+    * **Downsampled Buckets**: Keep aggregated data (like hourly averages) for a much longer term (e.g., 2 years). This saves storage and maintains query speed over time.
+3. **Shard Group Optimization**:
+    InfluxDB stores data in shards grouped by a specific time range. Aligning the Shard Group Duration with the Retention Policy eliminates overhead. A 7-day RP should use a 1-day shard group duration. For multi-year RP (downsampled bucket), we configure longer shard group durations (e.g., 1 month or 6 months) to avoid having too many small shards, maximizing memory and disk I/O efficiency.
+
+---
+
+## Question 1.2: RESTful API Design
+
+### Ingestion Endpoint (`POST /api/v1/data/ingest`)
+
+We assume ingestion happens via industrial gateways pushing batched sensor payloads, which is more network-efficient than single-point requests.
+
+**JSON Request Body design:**
+
+```json
+{
+  "gateway_id": "gw-001-factoryA",
+  "payloads": [
+    {
+      "machine_id": "123e4567-e89b-12d3-a456-426614174000",
+      "timestamp": "2023-10-27T10:00:00Z",
+      "metrics": {
+         "temperature": 45.5,
+         "pressure": 1.2,
+         "speed": 1500.0
+      }
+    },
+    {
+      "machine_id": "123e4567-e89b-12d3-a456-426614174000",
+      "timestamp": "2023-10-27T10:00:05Z",
+      "metrics": {
+         "temperature": 45.8,
+         "pressure": 1.3
+         // speed may be missing depending on the sensor configurations, validation handles this
+      }
+    }
+  ]
+}
+```
+
+---
+
+### Retrieval Endpoint (`GET /api/v1/data/machine/{machine_id}`)
+
+Retrieves bounded historical data for a given machine target.
+
+**Query Parameters:**
+
+* `start_time` (string, required): Standard ISO 8601 datetime defining the beginning of the retrieval window (e.g., `2023-10-20T00:00:00Z`).
+* `end_time` (string, required): Standard ISO 8601 datetime defining the end of the retrieval window. Must be chronological after `start_time`.
+* `interval` (string, optional): Defines the aggregation frequency for the time range (e.g., `1m`, `1h`, `1d`). If absent, raw telemetry is returned, otherwise the downsampled buckets fall under query scope to construct aggregated points.
+
+---
+
+### Brief Implementation Snippet
+
+The ingestion endpoint code in FastAPI is available in `main.py`, showcasing robust Pydantic data validation logic over input formats, allowable boundaries, and timestamp checking before returning a `202 Accepted` response for decoupled batch-ingestion architectures.
+
+---
+
+# Part 2: Industrial Protocols & Security
+
+## Question 2.1: MQTT Code Flow Pseudocode
+
+### Code Flow
+
+#### Topic Subscribed
+
+```text
+factory/A/machine/+/telemetry
+```
+
+The `+` is a single-level MQTT wildcard that matches any machine identifier.
+
+---
+
+#### Pseudocode
+
+```text
+FUNCTION mqtt_subscriber_main():
+
+    # ── 1. CONNECT ──────────────────────────────────────────────────────────
+    WHILE not stop_event is set:
+        TRY:
+            client = MQTT_CLIENT(
+                host     = MQTT_BROKER_HOST,
+                port     = MQTT_BROKER_PORT,
+                clientId = MQTT_CLIENT_ID,
+            )
+
+            CONNECT client TO broker
+            LOG "Connected to broker at {host}:{port}"
+
+            # ── 2. SUBSCRIBE ─────────────────────────────────────────────────
+            SUBSCRIBE client TO topic "factory/A/machine/+/telemetry"
+            LOG "Subscribed to topic filter"
+
+            # ── 3. MESSAGE LOOP ──────────────────────────────────────────────
+            FOR EACH message IN client.messages:
+                IF stop_event is set:
+                    BREAK
+
+                CALL on_message(topic=message.topic, payload=message.payload)
+
+        CATCH MqttConnectionError AS err:
+            LOG warning "Connection lost: {err}. Retry in 5 s…"
+            SLEEP 5 seconds   # back-off before reconnecting
+
+
+FUNCTION on_message(topic: string, payload: bytes):
+
+    # ── 3.1  Extract machine_id from topic ───────────────────────────────────
+    parts = topic.SPLIT("/")
+    # Expected: ["factory", "<factory_id>", "machine", "<machine_id>", "telemetry"]
+    IF len(parts) != 5:
+        LOG warning "Unexpected topic shape – skipping"
+        RETURN
+
+    machine_id = UUID(parts[3])
+    IF machine_id is invalid:
+        LOG warning "Non-UUID machine segment – skipping"
+        RETURN
+
+    # ── 3.2  Decode + JSON-parse payload ─────────────────────────────────────
+    TRY:
+        data = JSON_PARSE(payload.DECODE("utf-8"))
+    CATCH (DecodeError, JSONError):
+        LOG error "Malformed payload – skipping"
+        RETURN
+
+    # ── 3.3  Validate via schema ─────────────────────────────────────────────
+    TRY:
+        sensor_payload = SensorDataPayload(
+            machine_id = machine_id,
+            timestamp  = data["timestamp"],
+            metrics    = SensorMetrics(
+                temperature = data.metrics.temperature,
+                pressure    = data.metrics.pressure,
+                speed       = data.metrics.speed,
+            )
+        )
+        ASSERT at_least_one_metric_is_not_null(sensor_payload.metrics)
+    CATCH ValidationError:
+        LOG error "Schema validation failed – skipping"
+        RETURN
+
+    # ── 3.4  Verify machine exists in PostgreSQL ─────────────────────────────
+    machine = AWAIT machine_repo.get_by_id(machine_id)
+    IF machine IS None:
+        LOG warning "Unknown machine {machine_id} – discarding"
+        RETURN
+
+    # ── 3.5  Persist to InfluxDB ─────────────────────────────────────────────
+    batch = BatchIngestRequest(
+        gateway_id = "mqtt-subscriber",
+        payloads   = [sensor_payload]
+    )
+    TRY:
+        AWAIT sensor_repo.write_batch(batch)
+        LOG info "Data for machine {machine_id} written to InfluxDB"
+    CATCH WriteError AS err:
+        LOG error "InfluxDB write failed: {err}"
+```
+
+---
+
+#### Flow Summary
+
+```text
+MQTT Broker
+    │  publish  factory/A/machine/<id>/telemetry  { … }
+    ▼
+MQTTSubscriberService.start()
+    │  aiomqtt async message loop
+    ▼
+handle_mqtt_message(topic, payload)
+    ├─ extract machine_id from topic
+    ├─ JSON-parse payload
+    ├─ Pydantic validation (SensorDataPayload)
+    ├─ machine_repo.get_by_id(machine_id)   → PostgreSQL check
+    └─ sensor_repo.write_batch(batch)       → InfluxDB write
+```
+
+---
+
+### WebSocket vs MQTT: Fundamental Differences & Decision Guide
+
+#### Fundamental Differences
+
+| Dimension | MQTT | WebSocket |
+| ----------- | ------ | ----------- |
+| **Protocol model** | Publish-Subscribe (broker in the middle) | Client-Server (direct, full-duplex TCP) |
+| **Connection owner** | Broker manages all connections; clients are decoupled | Each pair of endpoints maintains its own connection |
+| **Message routing** | Topic-based routing by the broker (`factory/A/machine/+/telemetry`) | Application-level routing; client must address server directly |
+| **Footprint** | Extremely lightweight (2-byte fixed header); designed for constrained devices | Heavier framing; general-purpose binary/text framing |
+| **QoS** | Built-in QoS levels 0 / 1 / 2 (at-most-once → exactly-once guarantee) | No built-in delivery guarantee; must be implemented in application layer |
+| **Persistent sessions** | Optional persistent session survives client reconnection; broker queues missed messages (QoS 1/2) | Stateless from the protocol's point of view; reconnect = new session |
+| **Retained messages** | Broker can retain the last message on a topic and deliver it to new subscribers immediately | No equivalent; latest state must be fetched via separate request |
+| **Connection initiation** | Device → Broker (device is always the initiator; broker is always reachable) | Typically Client → Server; either side can send once connected |
+| **Fan-out** | Broker delivers one published message to *N* subscribers automatically | Server must loop over all connected clients and send individually |
+| **Firewall / NAT friendliness** | Single outbound TCP/TLS to broker from every device | Same; but server push through a reverse proxy is common |
+
+---
+
+#### When to Choose MQTT over WebSocket for a Real-Time Dashboard
+
+Choose **MQTT as the data source** when **any** of the following conditions apply:
+
+##### 1. Data originates from industrial / IoT devices
+
+Sensors, PLCs, and microcontrollers natively speak MQTT. Translating their
+output to WebSocket adds a conversion layer with no benefit.
+
+##### 2. Hundreds or thousands of data streams
+
+MQTT's topic tree and the broker's built-in fan-out mean the backend service
+subscribes to one wildcard topic and receives data from every machine without
+maintaining a per-machine WebSocket connection.
+
+##### 3. Intermittent connectivity must be tolerated
+
+With **QoS 1 or 2** and a **persistent session**, the broker queues messages
+published while the subscriber was offline and replays them on reconnect.
+A WebSocket connection drops all in-flight data when it closes.
+
+##### 4. Last-known state must be available to late joiners
+
+MQTT **retained messages** let a new dashboard subscriber instantly receive
+the most recent reading for every machine, without waiting for the device to
+publish again. WebSocket has no such primitive.
+
+##### 5. Decoupling producers from consumers is critical
+
+MQTT's publish-subscribe pattern means a new consumer (e.g. an alert service,
+a secondary dashboard) can subscribe to the same topic with *zero changes* to
+the device or the ingestion backend. With WebSocket the server must explicitly
+know about and manage every consumer.
+
+---
+
+#### When WebSocket is preferable
+
+| Scenario | Prefer |
+| ---------- | -------- |
+| End-user browser dashboard consuming pre-aggregated data | **WebSocket** – browsers speak it natively; no broker needed |
+| Bidirectional control (user sends commands, server sends state) | **WebSocket** – natural for interactive UIs |
+| Simple single-server, few clients | **WebSocket** – less infrastructure overhead |
+| Sub-50 ms latency requirement with bespoke protocol | **WebSocket** – full control over framing |
+
+---
+
+#### Architecture of This Service
+
+This service uses **MQTT as the primary ingestion channel** (device → broker →
+`MQTTSubscriberService` → InfluxDB) and exposes the stored data over **REST / WebSocket** to dashboard clients—combining both protocols at the layer where
+each is strongest.
+
+```text
+[Machine/Sensor]  →  [MQTT Broker]  →  [MQTTSubscriberService]  →  [InfluxDB]
+                                                                         │
+[Browser Dashboard]  ←  ──────── REST / WebSocket ─────────────  [FastAPI API]
+```

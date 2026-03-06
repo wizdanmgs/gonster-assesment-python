@@ -20,6 +20,15 @@ MSG_INGEST_QUEUED = "INGEST_QUEUED"
 MSG_HISTORICAL_DATA_RETRIEVED = "HISTORICAL_DATA_RETRIEVED"
 MSG_INVALID_TIME_RANGE = "INVALID_TIME_RANGE"
 
+# MQTT Subscriber messages
+MSG_MQTT_CONNECTED = "MQTT_CONNECTED"
+MSG_MQTT_DISCONNECTED = "MQTT_DISCONNECTED"
+MSG_MQTT_MESSAGE_RECEIVED = "MQTT_MESSAGE_RECEIVED"
+MSG_MQTT_PAYLOAD_INVALID = "MQTT_PAYLOAD_INVALID"
+MSG_MQTT_MACHINE_NOT_FOUND = "MQTT_MACHINE_NOT_FOUND"
+MSG_MQTT_INGEST_SUCCESS = "MQTT_INGEST_SUCCESS"
+MSG_MQTT_INGEST_FAILED = "MQTT_INGEST_FAILED"
+
 MESSAGES: Dict[str, str] = {
     MSG_SUCCESS: "Success",
     MSG_ERROR: "Error",
@@ -36,7 +45,15 @@ MESSAGES: Dict[str, str] = {
     
     MSG_INGEST_QUEUED: "Successfully queued {count} data points for processing.",
     MSG_HISTORICAL_DATA_RETRIEVED: "Historical data retrieved successfully",
-    MSG_INVALID_TIME_RANGE: "start_time must be strictly before end_time"
+    MSG_INVALID_TIME_RANGE: "start_time must be strictly before end_time",
+
+    MSG_MQTT_CONNECTED: "Connected to MQTT broker at {host}:{port}, subscribed to {topic}",
+    MSG_MQTT_DISCONNECTED: "MQTT subscriber stopped.",
+    MSG_MQTT_MESSAGE_RECEIVED: "MQTT message received on topic: {topic}",
+    MSG_MQTT_PAYLOAD_INVALID: "Invalid MQTT payload — skipping message",
+    MSG_MQTT_MACHINE_NOT_FOUND: "Machine {machine_id} not found in registry — discarding MQTT message",
+    MSG_MQTT_INGEST_SUCCESS: "MQTT data for machine {machine_id} written to InfluxDB",
+    MSG_MQTT_INGEST_FAILED: "Failed to write MQTT data for machine {machine_id} to InfluxDB",
 }
 
 def get_message(key: str, **kwargs: Any) -> str:
