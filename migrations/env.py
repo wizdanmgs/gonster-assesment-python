@@ -1,5 +1,10 @@
 import asyncio
+import os
+import sys
 from logging.config import fileConfig
+
+# Add the project root directory to the python path so 'app' can be imported
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -20,6 +25,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 from app.db.postgres import Base
 from app.models.machine import MachineMetadata
+from app.models.user import User
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

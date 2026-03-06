@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     SERVER_HOST: str = "localhost"
     SERVER_PORT: int = 8000
     
+    # JWT Settings
+    SECRET_KEY: str = "supersecretkey_for_assessment_only"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 hours
+    
     # Database Backend
     DB_ENGINE: str = "postgresql"
     DB_DRIVER: str = "asyncpg"

@@ -4,6 +4,7 @@ from typing import Any, Dict
 MSG_SUCCESS = "SUCCESS"
 MSG_ERROR = "ERROR"
 MSG_VALIDATION_ERROR = "VALIDATION_ERROR"
+MSG_FORBIDDEN = "FORBIDDEN"
 MSG_NOT_FOUND = "NOT_FOUND"
 MSG_INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
 
@@ -29,10 +30,19 @@ MSG_MQTT_MACHINE_NOT_FOUND = "MQTT_MACHINE_NOT_FOUND"
 MSG_MQTT_INGEST_SUCCESS = "MQTT_INGEST_SUCCESS"
 MSG_MQTT_INGEST_FAILED = "MQTT_INGEST_FAILED"
 
+# Authentication
+MSG_CREDENTIALS_INCORRECT = "CREDENTIALS_INCORRECT"
+MSG_CREDENTIALS_INVALID = "CREDENTIALS_INVALID"
+MSG_USER_INACTIVE = "USER_INACTIVE"
+
+# Configuration
+MSG_CONFIG_UPDATED = "CONFIG_UPDATED"
+
 MESSAGES: Dict[str, str] = {
     MSG_SUCCESS: "Success",
     MSG_ERROR: "Error",
     MSG_VALIDATION_ERROR: "Invalid input data format or values.",
+    MSG_FORBIDDEN: "Operation not permitted",
     MSG_NOT_FOUND: "Resource not found",
     MSG_INTERNAL_SERVER_ERROR: "An unexpected error occurred.",
     
@@ -54,6 +64,12 @@ MESSAGES: Dict[str, str] = {
     MSG_MQTT_MACHINE_NOT_FOUND: "Machine {machine_id} not found in registry — discarding MQTT message",
     MSG_MQTT_INGEST_SUCCESS: "MQTT data for machine {machine_id} written to InfluxDB",
     MSG_MQTT_INGEST_FAILED: "Failed to write MQTT data for machine {machine_id} to InfluxDB",
+
+    MSG_CREDENTIALS_INCORRECT: "Incorrect email or password",
+    MSG_CREDENTIALS_INVALID: "Could not validate credentials",
+    MSG_USER_INACTIVE: "Inactive user",
+
+    MSG_CONFIG_UPDATED: "System configuration updated successfully",
 }
 
 def get_message(key: str, **kwargs: Any) -> str:

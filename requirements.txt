@@ -6,3 +6,6 @@ sqlalchemy[asyncio]>=2.0.30
 asyncpg>=0.29.0
 influxdb-client[async]>=1.42.0
 aiomqtt>=2.0.0
+pyjwt>=2.8.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9

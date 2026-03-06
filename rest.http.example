@@ -1,4 +1,31 @@
 @BASE_URL = http://localhost:8000
+@TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNWIwZWI3ZC1lNzFhLTRjODAtOWI3Zi0wOGI1NWNiZWZmNTIiLCJyb2xlIjoiTWFuYWdlbWVudCIsImV4cCI6MTc3MjgxNDA5MCwiaWF0IjoxNzcyODE0MDMwfQ.0EGsLRecpB0ciHCtp9RpLeeRwy8wtRdJgSOkAAQxYKE
+
+###
+@USERNAME = admin@test.com
+@PASSWORD=123456789
+
+POST /api/v1/auth/login HTTP/1.1
+Host: localhost:8000
+Accept: application/json
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 53
+
+username={{USERNAME}}&password={{PASSWORD}}
+
+###
+
+POST /api/v1/config/update HTTP/1.1
+Host: localhost:8000
+Accept: application/json
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Content-Length: 62
+
+{
+  "setting_key": "max_connections",
+  "setting_value": "100"
+}
 
 ### Fetch Sensor Data
 @MACHINE_ID = bc4a5a56-3b74-4d5f-b66f-22addc273f12
@@ -6,9 +33,11 @@
 @END_TIME = 2026-03-05T10:01:00Z
 
 GET {{BASE_URL}}/api/v1/data/machine/{{MACHINE_ID}}?start_time={{START_TIME}}&end_time={{END_TIME}}
+Authorization: Bearer {{TOKEN}}
 
 ### Ingest Sensor Data
 POST {{BASE_URL}}/api/v1/data/ingest
+Authorization: Bearer {{TOKEN}}
 Content-Type: application/json
 
 {
